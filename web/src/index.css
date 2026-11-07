@@ -1,0 +1,400 @@
+/*
+ * DM Serif Display and Manrope carry no Ethiopic coverage, so Amharic would
+ * fall back to whatever the OS happens to have and look nothing like the rest
+ * of the site. Noto Sans/Serif Ethiopic are added to the front of the stack
+ * instead: Latin glyphs still come from the display faces, Ge'ez comes from
+ * Noto. Afaan Oromo is Latin script and needs no extra font.
+ */
+@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;500;600;700&family=Noto+Serif+Ethiopic:wght@400;600&display=swap");
+
+@import "tailwindcss";
+
+/*
+ * Staff console theme.
+ *
+ * The storefront is near-black and gold: a shop's brand, and right for a
+ * page a customer chooses to look at. The console is the opposite
+ * problem - it is the screen a person stares at for a whole shift, often
+ * one-handed on a phone, and the job is to read numbers and act on them.
+ * So the console has its own neutral ramp and can run light or dark,
+ * while keeping the gold accent either way so it still reads as the same
+ * product.
+ *
+ * `@theme inline` rather than `@theme`, and that is the whole trick.
+ * A plain `@theme` bakes each value into a static utility at build time,
+ * so the colour cannot change without a rebuild. `inline` makes Tailwind
+ * emit `var(--console-raised)` instead of the resolved hex, so the real
+ * values live in ordinary custom properties below and can be swapped at
+ * runtime by flipping `data-theme` on <html>.
+ *
+ * The storefront is deliberately NOT covered by this. It is 800-odd
+ * arbitrary-hex utilities across twenty brand-critical pages; a partial
+ * conversion would look broken rather than themed, so it stays dark and
+ * the toggle is labelled as applying to the console.
+ */
+@theme inline {
+  /* Surfaces, flattest page to the most recessed control. */
+  --color-console: var(--console-page);
+  --color-console-raised: var(--console-surface);
+  --color-console-sunken: var(--console-recess);
+  --color-console-line: var(--console-border);
+  --color-console-line-strong: var(--console-border-strong);
+
+  /* Ink. Four steps is enough to build a hierarchy without inventing
+     a new grey for every element. */
+  --color-console-ink: var(--console-ink-1);
+  --color-console-body: var(--console-ink-2);
+  --color-console-muted: var(--console-ink-3);
+  --color-console-faint: var(--console-ink-4);
+
+  /* The brand accent. Gold is unreadable as text on white and
+     unreadable-on-gold the other way, so each theme gets the shade
+     that works for its own surfaces plus an explicit "on accent"
+     colour for text sitting on top of it. */
+  --color-console-accent: var(--console-accent);
+  --color-console-accent-strong: var(--console-accent-strong);
+  --color-console-accent-soft: var(--console-accent-soft);
+  --color-console-on-accent: var(--console-on-accent);
+
+  /* Status. Read at a glance to decide what to do next, so both ramps
+     are the WCAG AA version of the same hue. */
+  --color-console-good: var(--console-good);
+  --color-console-good-soft: var(--console-good-soft);
+  --color-console-warn: var(--console-warn);
+  --color-console-warn-soft: var(--console-warn-soft);
+  --color-console-bad: var(--console-bad);
+  --color-console-bad-soft: var(--console-bad-soft);
+  --color-console-info: var(--console-info);
+  --color-console-info-soft: var(--console-info-soft);
+}
+
+/*
+ * Light is the default.
+ *
+ * Not because light is better - a barber working a night shift in a dim
+ * shop may want the opposite - but because the console's original
+ * surface was light and a first-time visitor should see what they were
+ * built for. The stored preference wins over this; see web/index.html.
+ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --console-page: #f4f5f7;
+  --console-surface: #ffffff;
+  --console-recess: #eceef1;
+  --console-border: #dfe2e7;
+  --console-border-strong: #c7ccd4;
+
+  --console-ink-1: #14161a;
+  --console-ink-2: #3d434d;
+  --console-ink-3: #6b7280;
+  --console-ink-4: #9aa1ac;
+
+  --console-accent: #9a7524;
+  --console-accent-strong: #7a5c15;
+  --console-accent-soft: #fbf3e0;
+  --console-on-accent: #ffffff;
+
+  --console-good: #1a7f4b;
+  --console-good-soft: #e6f4ec;
+  --console-warn: #92600c;
+  --console-warn-soft: #fbf1dc;
+  --console-bad: #b3382c;
+  --console-bad-soft: #fbeae8;
+  --console-info: #1f5f9e;
+  --console-info-soft: #e8f0f8;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --console-page: #0d0d0d;
+  --console-surface: #171717;
+  --console-recess: #202020;
+  --console-border: #2b2b2b;
+  --console-border-strong: #3f3f3f;
+
+  --console-ink-1: #f4f0e8;
+  --console-ink-2: #cdc8bf;
+  --console-ink-3: #9c978e;
+  --console-ink-4: #736f68;
+
+  --console-accent: #d6a85f;
+  --console-accent-strong: #e5bd7a;
+  --console-accent-soft: #2a2317;
+  /* Black on gold. White on this accent fails contrast badly. */
+  --console-on-accent: #0d0d0d;
+
+  --console-good: #7fcfa4;
+  --console-good-soft: #16281e;
+  --console-warn: #e5bd7a;
+  --console-warn-soft: #2a2317;
+  --console-bad: #e0776b;
+  --console-bad-soft: #2b1a17;
+  --console-info: #8ab8e8;
+  --console-info-soft: #16202b;
+}
+
+/*
+ * A first visit with no stored preference follows the operating system.
+ *
+ * Scoped to the console wrapper rather than `:root`, so a visitor whose
+ * phone is in dark mode does not get a light admin sidebar sitting on a
+ * dark storefront - the two disagreeing on one screen is worse than
+ * either choice.
+ */
+@media (prefers-color-scheme: dark) {
+  [data-theme="auto"] {
+    color-scheme: dark;
+
+    --console-page: #0d0d0d;
+    --console-surface: #171717;
+    --console-recess: #202020;
+    --console-border: #2b2b2b;
+    --console-border-strong: #3f3f3f;
+
+    --console-ink-1: #f4f0e8;
+    --console-ink-2: #cdc8bf;
+    --console-ink-3: #9c978e;
+    --console-ink-4: #736f68;
+
+    --console-accent: #d6a85f;
+    --console-accent-strong: #e5bd7a;
+    --console-accent-soft: #2a2317;
+    --console-on-accent: #0d0d0d;
+
+    --console-good: #7fcfa4;
+    --console-good-soft: #16281e;
+    --console-warn: #e5bd7a;
+    --console-warn-soft: #2a2317;
+    --console-bad: #e0776b;
+    --console-bad-soft: #2b1a17;
+    --console-info: #8ab8e8;
+    --console-info-soft: #16202b;
+  }
+}
+
+:root {
+  font-family: "Manrope", "Noto Sans Ethiopic", sans-serif;
+  color: #f4f0e8;
+  background: #090909;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ge'ez script sits on a taller x-height than Latin, so headings need a
+   little more leading to stop the ascenders clipping. */
+:root:lang(am) {
+  line-height: 1.65;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: #090909;
+}
+
+/*
+ * The header is position: fixed and 78px tall, so a section reached through a
+ * hash link (the nav "About" link points at /#about) would otherwise park its
+ * top edge underneath it. Every scroll target gets clearance equal to the
+ * header plus a little breathing room.
+ *
+ * .scroll-target is there for the case where a hash points at something that
+ * is not a <section>.
+ */
+section[id],
+.scroll-target {
+  scroll-margin-top: 96px;
+}
+
+/* The <main> landmark takes programmatic focus after a route change so
+   keyboard and screen-reader users land on the new content. It is not in the
+   tab order, so it should never paint a focus ring. */
+#main-content:focus {
+  outline: none;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #090909;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+}
+
+::selection {
+  background: #d6a85f;
+  color: #090909;
+}
+
+.font-serif {
+  font-family: "DM Serif Display", "Noto Serif Ethiopic", Georgia, serif;
+}
+
+/* Scrollbar */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090909;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #292929;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d6a85f;
+}
+
+/* Date input */
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.45;
+}
+
+/* Better focus accessibility */
+
+:focus-visible {
+  outline: 2px solid #d6a85f;
+  outline-offset: 3px;
+}
+
+/* ---------------- animation utilities ---------------- */
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes float-slow-x {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(6px, -10px); }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-float-slow { animation: float-slow 7s ease-in-out infinite; }
+.animate-float-slow-x { animation: float-slow-x 9s ease-in-out infinite; }
+
+.animate-marquee {
+  animation: marquee 28s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+.pulse-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(214, 168, 95, 0.45);
+  animation: pulse-ring 2.4s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
+
+.shimmer-text {
+  background: linear-gradient(
+    100deg,
+    #d6a85f 0%,
+    #f4e3bd 20%,
+    #d6a85f 40%,
+    #d6a85f 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 6s linear infinite;
+}
+
+/* Hide the scrollbar on horizontal carousels while keeping scroll snap. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Subtle grain used over imagery so backgrounds feel physical. */
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.14) 0.6px, transparent 0.6px);
+  background-size: 3px 3px;
+  mix-blend-mode: overlay;
+}
+
+/* -----------------------------------------------------------------
+ * Small-device fit
+ * -----------------------------------------------------------------
+ *
+ * Two things the utility classes cannot express.
+ */
+
+/*
+ * iOS Safari zooms the whole page when a focused input is under 16px.
+ * Everything the user types into on a phone - booking, payment, the
+ * review form, both account screens and every admin field - is already
+ * sized at 16px for exactly this reason, but a stray `text-sm` on a
+ * control would still trigger it, and the resulting zoom does not
+ * reset when the field blurs. This is the backstop.
+ */
+input,
+textarea,
+select {
+  font-size: max(16px, 1em);
+}
+
+/*
+ * 100dvh is the viewport height excluding a mobile browser's collapsing
+ * URL bar; 100vh includes it, which is how a full-height panel ends up
+ * with its submit button below the fold on first paint. The admin
+ * layout and the account screens size against it.
+ */
+:root {
+  --viewport-height: 100vh;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --viewport-height: 100dvh;
+  }
+}
