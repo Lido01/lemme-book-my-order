@@ -1,0 +1,260 @@
+import { useEffect } from "react";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+
+import Navbar from "./components/Navbar";
+import BottomBar from "./components/BottomBar";
+import Footer from "./components/Footer";
+import RequireAdmin from "./components/RequireAdmin";
+import RequireCustomer from "./components/RequireCustomer";
+import ScrollToTop from "./components/ScrollToTop";
+import AiChatWidget from "./components/ai/AiChatWidget";
+import AdminLayout from "./components/admin/AdminLayout";
+import { AdminAuthProvider } from "./context/AdminAuthContext";
+import { CustomerAuthProvider } from "./context/CustomerAuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { TelegramProvider, useTelegram } from "./context/TelegramContext";
+import { LanguageProvider } from "./i18n/LanguageContext";
+
+import Home from "./pages/Home";
+import Gallery from "./pages/Gallery";
+import Haircuts from "./pages/Haircuts";
+import Barbers from "./pages/Barbers";
+import Services from "./pages/Services";
+import ServiceDetail from "./pages/ServiceDetail";
+import Booking from "./pages/Booking";
+import Payment from "./pages/Payment";
+import BookingSuccess from "./pages/BookingSuccess";
+import MyBookings from "./pages/MyBookings";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Account from "./pages/Account";
+import Help from "./pages/Help";
+import NotFound from "./pages/NotFound";
+
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminOverview from "./pages/admin/AdminOverview";
+import AdminBookings from "./pages/admin/AdminBookings";
+import AdminPayments from "./pages/admin/AdminPayments";
+import AdminServices from "./pages/admin/AdminServices";
+import AdminGallery from "./pages/admin/AdminGallery";
+import AdminTestimonials from "./pages/admin/AdminTestimonials";
+import AdminCustomers from "./pages/admin/AdminCustomers";
+import AdminTeam from "./pages/admin/AdminTeam";
+import AdminAuditLog from "./pages/admin/AdminAuditLog";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminSettings from "./pages/admin/AdminSettings";
+import AdminReports from "./pages/admin/AdminReports";
+import AdminProfile from "./pages/admin/AdminProfile";
+import AdminQuickAnswers from "./pages/admin/AdminQuickAnswers";
+
+/**
+ * Staff-only screen chunk. Each admin route is wrapped in RequireAdmin
+ * and rendered inside the shared sidebar layout.
+ *
+ * `capability` and `peopleOnly` mirror the two gates in adminNav, so a
+ * typed URL and a nav link agree on whether a screen is reachable.
+ * They are declared per route rather than looked up from the nav
+ * because this is the only place that knows which screen is which -
+ * duplicating that mapping is what lets the two drift apart.
+ */
+function AdminScreen({ children, capability, peopleOnly = false }) {
+  return (
+    <RequireAdmin capability={capability} peopleOnly={peopleOnly}>
+      <AdminLayout>{children}</AdminLayout>
+    </RequireAdmin>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      {/* Outside the auth providers on purpose: the theme is a device
+          preference, and the sign-in screen is the one screen that has
+          to render correctly before anyone is signed in. */}
+      <ThemeProvider>
+        <TelegramProvider>
+          <AdminAuthProvider>
+            <CustomerAuthProvider>
+              <Shell />
+            </CustomerAuthProvider>
+          </AdminAuthProvider>
+        </TelegramProvider>
+      </ThemeProvider>
+    </LanguageProvider>
+  );
+}
+
+/** Screens that own their whole viewport, chrome included. */
+const BARE_PATHS = ["/admin", "/login", "/register", "/account"];
+
+function isBare(pathname) {
+  return BARE_PATHS.some(
+    (path) =>
+      pathname === path ||
+      pathname.startsWith(`${path}/`)
+  );
+}
+
+/** Renders the public nav/footer, then the routed content. */
+function Shell() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { isTelegram, backButton } = useTelegram();
+  const bare = isBare(location.pathname);
+
+  // Synchronize Telegram Native BackButton with router history
+  useEffect(() => {
+    if (!isTelegram) return;
+    const isRoot = location.pathname === "/" || location.pathname === "/home";
+    if (!isRoot) {
+      backButton.show(() => navigate(-1));
+    } else {
+      backButton.hide();
+    }
+    return () => {
+      backButton.hide();
+    };
+  }, [isTelegram, location.pathname, backButton, navigate]);
+
+  return (
+    <div className="min-h-screen bg-[#090909] text-[#f4f0e8]">
+      <ScrollToTop />
+
+      {!bare && <Navbar />}
+
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="outline-none lg:pb-0"
+      >
+        <Routes>
+          {/* Public site */}
+          <Route path="/home" element={<Home />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/services/:id" element={<ServiceDetail />} />
+          <Route path="/" element={<Haircuts />} />
+          <Route path="/barbers" element={<Barbers />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/help" element={<Help />} />
+
+          {/* Public booking flow - deliberately unauthenticated. */}
+          <Route path="/booking" element={<Booking />} />
+          <Route path="/payment/:bookingId" element={<Payment />} />
+          <Route
+            path="/booking/success/:bookingId"
+            element={<BookingSuccess />}
+          />
+          {/* The way back to a booking made without an account: the code
+              from the confirmation plus the phone number it was made
+              with. Sits with the booking flow rather than under /account,
+              because it must work for a guest. */}
+          <Route path="/bookings" element={<MyBookings />} />
+
+          {/* Customer account. Needed to leave a review, not to book. */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/account"
+            element={
+              <RequireCustomer>
+                <Account />
+              </RequireCustomer>
+            }
+          />
+
+          {/* Staff only. The overview has no capability of its own -
+              the endpoint scopes itself to what the caller may see. */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={<AdminScreen><AdminOverview /></AdminScreen>} />
+          <Route path="/admin/dashboard/:role" element={<AdminScreen><AdminOverview /></AdminScreen>} />
+          <Route
+            path="/admin/bookings"
+            element={<AdminScreen capability="bookings.view"><AdminBookings /></AdminScreen>}
+          />
+          <Route
+            path="/admin/customers"
+            element={<AdminScreen capability="customers.view"><AdminCustomers /></AdminScreen>}
+          />
+
+          {/* The screens that hand out power. Gated on role, not
+              capability - see RequireAdmin. */}
+          <Route
+            path="/admin/team"
+            element={<AdminScreen peopleOnly><AdminTeam /></AdminScreen>}
+          />
+          <Route
+            path="/admin/activity"
+            element={<AdminScreen peopleOnly><AdminAuditLog /></AdminScreen>}
+          />
+          <Route
+            path="/admin/users"
+            element={<AdminScreen peopleOnly><AdminUsers /></AdminScreen>}
+          />
+
+          {/* Reports. Read-only and scoped to what the caller may see -
+              the dashboard half is available to any staff account with a
+              money capability, and the whole-shop half only reaches an
+              owner or administrator. The screen decides from the payload
+              rather than refusing outright, so a receptionist still gets
+              the volume report they are allowed. */}
+          <Route
+            path="/admin/reports"
+            element={<AdminScreen capability="payments.view"><AdminReports /></AdminScreen>}
+          />
+
+          {/* Reports about the sign-in itself. Every staff account may
+              reach it: reading your own record and changing your own
+              password are not privileges, and the API agrees - the
+              password endpoint only asks for a valid token. */}
+          <Route
+            path="/admin/profile"
+            element={<AdminScreen><AdminProfile /></AdminScreen>}
+          />
+          <Route
+            path="/admin/payments"
+            element={<AdminScreen capability="payments.view"><AdminPayments /></AdminScreen>}
+          />
+          <Route
+            path="/admin/services"
+            element={<AdminScreen capability="services.manage"><AdminServices /></AdminScreen>}
+          />
+          <Route
+            path="/admin/gallery"
+            element={<AdminScreen capability="gallery.manage"><AdminGallery /></AdminScreen>}
+          />
+          <Route
+            path="/admin/testimonials"
+            element={<AdminScreen capability="reviews.moderate"><AdminTestimonials /></AdminScreen>}
+          />
+          <Route
+            path="/admin/quick-answers"
+            element={<AdminScreen capability="ai.manage"><AdminQuickAnswers /></AdminScreen>}
+          />
+
+          {/* Shop settings. No capability gate on the screen itself:
+              reading the shop's own details is not privileged - a
+              receptionist reading out the address needs the same record
+              an owner edits. The endpoint decides who may write, and
+              the screen renders its controls accordingly. */}
+          <Route
+            path="/admin/settings"
+            element={<AdminScreen><AdminSettings /></AdminScreen>}
+          />
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
+
+      {!bare && <Footer />}
+      {!bare && <BottomBar />}
+
+      {/* The AI assistant floats above every storefront screen and is kept
+          off the `bare` paths — it is a customer tool, and painting a
+          chat launcher over the staff sign-in sheet or an account page
+          the customer did not ask for is noise. Keyed off `bare` rather
+          than off the pathname directly, so it agrees with the nav/footer
+          decision instead of restating it. */}
+      {!bare && <AiChatWidget />}
+    </div>
+  );
+}

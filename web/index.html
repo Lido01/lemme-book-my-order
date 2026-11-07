@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>NOIR Barbers — Addis Ababa</title>
+    <meta
+      name="description"
+      content="NOIR Barbers is a modern grooming studio in Addis Ababa. Book a chair in under a minute."
+    />
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!--
+      The LanguageProvider overwrites this with the visitor's choice as soon
+      as the app mounts; it is set here so the tag is correct before hydration
+      and for anything that reads the DOM before React runs.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("noir.console.theme");
+          var theme =
+            stored === "light" || stored === "dark" ? stored : "auto";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (error) {
+          document.documentElement.setAttribute("data-theme", "auto");
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
