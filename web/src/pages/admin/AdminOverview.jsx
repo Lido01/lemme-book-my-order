@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import Alert from "../../components/ui/Alert";
+import AdminMobileAssetHub from "../../components/admin/AdminMobileAssetHub";
 import {
   AdminButton,
   AdminChip,
@@ -225,6 +226,8 @@ export default function AdminOverview() {
 
       {data && (
         <>
+          <AdminMobileAssetHub onRefresh={load} />
+
           {/* Work first. A dashboard that leads with revenue while
               three payments sit unverified has its priorities
               upside-down for whoever just opened it. */}
