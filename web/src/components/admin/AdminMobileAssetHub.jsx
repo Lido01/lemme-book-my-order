@@ -24,6 +24,15 @@ import {
   saveStandaloneService,
   updateStandaloneBookingStatus,
 } from "../../services/standaloneStore";
+import {
+  isSupabaseConfigured,
+  upsertSupabaseService,
+  deleteSupabaseService as deleteSupaService,
+  upsertSupabaseBarber,
+  deleteSupabaseBarber as deleteSupaBarber,
+  upsertSupabaseGallery,
+  deleteSupabaseGallery as deleteSupaGallery,
+} from "../../services/supabase";
 import { invalidateQuery } from "../../hooks/useQuery";
 
 const PRESET_IMAGES = [
@@ -78,14 +87,19 @@ export default function AdminMobileAssetHub({ onRefresh }) {
     e.preventDefault();
     if (!serviceForm.name.trim()) return;
 
-    saveStandaloneService({
+    const payload = {
       name: serviceForm.name.trim(),
       price: serviceForm.price,
       duration: serviceForm.duration,
       image: serviceForm.image,
       description: serviceForm.description || "Studio grooming service",
       is_active: true,
-    });
+    };
+
+    saveStandaloneService(payload);
+    if (isSupabaseConfigured()) {
+      upsertSupabaseService(payload).catch(() => {});
+    }
 
     setServiceForm({ name: "", price: "350", duration: "40", image: PRESET_IMAGES[0].url, description: "" });
     setShowAddModal(false);
@@ -96,13 +110,18 @@ export default function AdminMobileAssetHub({ onRefresh }) {
     e.preventDefault();
     if (!barberForm.name.trim()) return;
 
-    saveStandaloneBarber({
+    const payload = {
       name: barberForm.name.trim(),
       role: barberForm.role,
       specialty: barberForm.specialty,
       image: barberForm.image,
       is_active: true,
-    });
+    };
+
+    saveStandaloneBarber(payload);
+    if (isSupabaseConfigured()) {
+      upsertSupabaseBarber(payload).catch(() => {});
+    }
 
     setBarberForm({ name: "", role: "Master Barber", specialty: "Fades & Styling", image: "/images/barbers/daniel.webp" });
     setShowAddModal(false);
@@ -113,12 +132,17 @@ export default function AdminMobileAssetHub({ onRefresh }) {
     e.preventDefault();
     if (!galleryForm.title.trim()) return;
 
-    saveStandaloneGallery({
+    const payload = {
       title: galleryForm.title.trim(),
       style_name: galleryForm.style_name,
       image: galleryForm.image,
       is_active: true,
-    });
+    };
+
+    saveStandaloneGallery(payload);
+    if (isSupabaseConfigured()) {
+      upsertSupabaseGallery(payload).catch(() => {});
+    }
 
     setGalleryForm({ title: "", style_name: "Modern Cut", image: PRESET_IMAGES[0].url });
     setShowAddModal(false);
@@ -128,6 +152,9 @@ export default function AdminMobileAssetHub({ onRefresh }) {
   const handleDeleteService = (id) => {
     if (window.confirm("Remove this service from booking?")) {
       deleteStandaloneService(id);
+      if (isSupabaseConfigured()) {
+        deleteSupaService(id).catch(() => {});
+      }
       reloadAll();
     }
   };
@@ -135,6 +162,9 @@ export default function AdminMobileAssetHub({ onRefresh }) {
   const handleDeleteBarber = (id) => {
     if (window.confirm("Remove this barber from the roster?")) {
       deleteStandaloneBarber(id);
+      if (isSupabaseConfigured()) {
+        deleteSupaBarber(id).catch(() => {});
+      }
       reloadAll();
     }
   };
@@ -142,6 +172,9 @@ export default function AdminMobileAssetHub({ onRefresh }) {
   const handleDeleteGallery = (id) => {
     if (window.confirm("Remove photo from gallery?")) {
       deleteStandaloneGallery(id);
+      if (isSupabaseConfigured()) {
+        deleteSupaGallery(id).catch(() => {});
+      }
       reloadAll();
     }
   };

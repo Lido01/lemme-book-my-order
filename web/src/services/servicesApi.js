@@ -4,15 +4,31 @@ import {
   getStandaloneServices,
   saveStandaloneService,
 } from "./standaloneStore";
+import {
+  isSupabaseConfigured,
+  fetchSupabaseServices,
+  upsertSupabaseService,
+  deleteSupabaseService as deleteFromSupabase,
+} from "./supabase";
 
 /**
  * Services — GET /api/services/
  *
- * Supports both full backend API and standalone/cloud-ready client operation.
- * If backend is not running, falls back automatically to local catalogue.
+ * Supports Supabase Cloud Database, Django backend API, and local storage fallback.
  */
 
 export async function listServices({ signal } = {}) {
+  if (isSupabaseConfigured()) {
+    try {
+      const supaServices = await fetchSupabaseServices();
+      if (Array.isArray(supaServices) && supaServices.length > 0) {
+        return supaServices;
+      }
+    } catch (err) {
+      console.warn("[servicesApi] Supabase fetch fallback:", err);
+    }
+  }
+
   if (!API_ROOT) {
     return getStandaloneServices();
   }
@@ -28,6 +44,14 @@ export async function listServices({ signal } = {}) {
 }
 
 export async function getService(id, { signal } = {}) {
+  if (isSupabaseConfigured()) {
+    try {
+      const supaServices = await fetchSupabaseServices();
+      const match = supaServices?.find((s) => String(s.id) === String(id));
+      if (match) return match;
+    } catch {}
+  }
+
   if (!API_ROOT) {
     return (
       getStandaloneServices().find((s) => String(s.id) === String(id)) || null
@@ -46,16 +70,18 @@ export async function getService(id, { signal } = {}) {
 // --- admin only ---------------------------------------------------
 
 export function listAllServices({ signal } = {}) {
-  if (!API_ROOT) {
-    return Promise.resolve(getStandaloneServices());
-  }
-  return api
-    .get("/services/", { requiresAuth: true, signal })
-    .then((response) => response.data)
-    .catch(() => getStandaloneServices());
+  return listServices({ signal });
 }
 
 export async function createService(fields) {
+  if (isSupabaseConfigured()) {
+    try {
+      await upsertSupabaseService(fields);
+    } catch (e) {
+      console.warn("[servicesApi] Supabase upsert error:", e);
+    }
+  }
+
   if (!API_ROOT) {
     return saveStandaloneService(fields);
   }
@@ -78,6 +104,14 @@ export async function createService(fields) {
 }
 
 export async function updateService(id, fields) {
+  if (isSupabaseConfigured()) {
+    try {
+      await upsertSupabaseService({ ...fields, id });
+    } catch (e) {
+      console.warn("[servicesApi] Supabase update error:", e);
+    }
+  }
+
   if (!API_ROOT) {
     return saveStandaloneService({ ...fields, id });
   }
@@ -102,6 +136,12 @@ export async function updateService(id, fields) {
 }
 
 export async function deleteService(id) {
+  if (isSupabaseConfigured()) {
+    try {
+      await deleteFromSupabase(id);
+    } catch {}
+  }
+
   if (!API_ROOT) {
     return deleteStandaloneService(id);
   }
@@ -114,44 +154,30 @@ export async function deleteService(id) {
 }
 
 export function createHaircutStyle(serviceId, fields) {
-  if (!API_ROOT) {
-    const services = getStandaloneServices();
-    const service = services.find((s) => String(s.id) === String(serviceId));
-    if (service) {
-      if (!service.styles) service.styles = [];
-      const newStyle = { id: Date.now(), name: fields.name };
-      service.styles.push(newStyle);
-      saveStandaloneService(service);
-      return Promise.resolve(newStyle);
+  const services = getStandaloneServices();
+  const service = services.find((s) => String(s.id) === String(serviceId));
+  if (service) {
+    if (!service.styles) service.styles = [];
+    const newStyle = { id: Date.now(), name: fields.name };
+    service.styles.push(newStyle);
+    saveStandaloneService(service);
+    if (isSupabaseConfigured()) {
+      upsertSupabaseService(service).catch(() => {});
     }
-    return Promise.resolve({ id: Date.now(), name: fields.name });
+    return Promise.resolve(newStyle);
   }
-
-  const formData = new FormData();
-  if (fields.name) formData.append("name", fields.name);
-  if (fields.description) formData.append("description", fields.description);
-  if (fields.image) formData.append("image", fields.image);
-
-  return api
-    .post(`/services/${serviceId}/styles/create/`, formData, {
-      requiresAuth: true,
-    })
-    .then((response) => response.data);
+  return Promise.resolve({ id: Date.now(), name: fields.name });
 }
 
 export function deleteHaircutStyle(serviceId, styleId) {
-  if (!API_ROOT) {
-    const services = getStandaloneServices();
-    const service = services.find((s) => String(s.id) === String(serviceId));
-    if (service && service.styles) {
-      service.styles = service.styles.filter((st) => String(st.id) !== String(styleId));
-      saveStandaloneService(service);
+  const services = getStandaloneServices();
+  const service = services.find((s) => String(s.id) === String(serviceId));
+  if (service && service.styles) {
+    service.styles = service.styles.filter((st) => String(st.id) !== String(styleId));
+    saveStandaloneService(service);
+    if (isSupabaseConfigured()) {
+      upsertSupabaseService(service).catch(() => {});
     }
-    return Promise.resolve();
   }
-  return api
-    .delete(`/services/${serviceId}/styles/${styleId}/`, {
-      requiresAuth: true,
-    })
-    .then(() => undefined);
+  return Promise.resolve();
 }

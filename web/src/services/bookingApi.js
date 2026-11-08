@@ -7,11 +7,18 @@ import {
   lookupStandaloneBookings,
   updateStandaloneBookingStatus,
 } from "./standaloneStore";
+import {
+  isSupabaseConfigured,
+  fetchSupabaseBarbers,
+  insertSupabaseBooking,
+  updateSupabaseBookingStatus as updateSupabaseBooking,
+} from "./supabase";
 
 /**
- * Bookings API with dual mode:
- * 1. Connects to backend if configured (VITE_API_BASE_URL).
- * 2. Seamlessly falls back to local/cloud-ready storage if no backend is running.
+ * Bookings API:
+ * 1. Synchronizes with Supabase Cloud Database when configured.
+ * 2. Uses Django backend API if configured.
+ * 3. Falls back gracefully to local client storage.
  */
 
 export async function getAvailability(
@@ -35,7 +42,6 @@ export async function getAvailability(
     const response = await api.get("/bookings/availability/", { params, signal });
     return response.data;
   } catch (error) {
-    console.info("[bookingApi] Using standalone availability");
     return getStandaloneAvailability({ serviceId, bookingDate, barberId });
   }
 }
@@ -65,20 +71,51 @@ export async function createBooking({
     payload.notes = notes;
   }
 
+  let bookingResult = null;
+
   if (!API_ROOT) {
-    return createStandaloneBooking(payload);
+    bookingResult = createStandaloneBooking(payload);
+  } else {
+    try {
+      const response = await api.post("/bookings/", payload);
+      bookingResult = response.data;
+    } catch (error) {
+      bookingResult = createStandaloneBooking(payload);
+    }
   }
 
-  try {
-    const response = await api.post("/bookings/", payload);
-    return response.data;
-  } catch (error) {
-    console.info("[bookingApi] Fallback to standalone booking creation");
-    return createStandaloneBooking(payload);
+  // Push to Supabase Cloud Database if configured
+  if (isSupabaseConfigured() && bookingResult) {
+    insertSupabaseBooking({
+      booking_code: bookingResult.booking_code,
+      customer_name: bookingResult.customer_name,
+      customer_phone: bookingResult.customer_phone,
+      service_id: bookingResult.service,
+      service_name: bookingResult.service_name,
+      barber_id: bookingResult.barber,
+      barber_name: bookingResult.barber_name,
+      booking_date: bookingResult.booking_date,
+      start_time: bookingResult.start_time,
+      status: bookingResult.status,
+      price: bookingResult.price,
+      payment_status: bookingResult.payment_status,
+      notes: bookingResult.notes,
+    }).catch((err) => console.warn("[bookingApi] Supabase insert error:", err));
   }
+
+  return bookingResult;
 }
 
 export async function listBarbers({ signal } = {}) {
+  if (isSupabaseConfigured()) {
+    try {
+      const supaBarbers = await fetchSupabaseBarbers();
+      if (Array.isArray(supaBarbers) && supaBarbers.length > 0) {
+        return supaBarbers;
+      }
+    } catch {}
+  }
+
   if (!API_ROOT) {
     return getStandaloneBarbers();
   }
@@ -89,7 +126,6 @@ export async function listBarbers({ signal } = {}) {
       ? response.data
       : getStandaloneBarbers();
   } catch (error) {
-    console.info("[bookingApi] Using standalone barbers");
     return getStandaloneBarbers();
   }
 }
@@ -201,6 +237,9 @@ export function getBooking(id, { signal } = {}) {
 }
 
 export function cancelBooking(id) {
+  if (isSupabaseConfigured()) {
+    updateSupabaseBooking(id, "cancelled").catch(() => {});
+  }
   if (!API_ROOT) {
     return Promise.resolve(updateStandaloneBookingStatus(id, "cancelled"));
   }
@@ -211,6 +250,9 @@ export function cancelBooking(id) {
 }
 
 export function confirmBooking(id) {
+  if (isSupabaseConfigured()) {
+    updateSupabaseBooking(id, "confirmed").catch(() => {});
+  }
   if (!API_ROOT) {
     return Promise.resolve(updateStandaloneBookingStatus(id, "confirmed"));
   }
@@ -221,6 +263,9 @@ export function confirmBooking(id) {
 }
 
 export function completeBooking(id) {
+  if (isSupabaseConfigured()) {
+    updateSupabaseBooking(id, "completed").catch(() => {});
+  }
   if (!API_ROOT) {
     return Promise.resolve(updateStandaloneBookingStatus(id, "completed"));
   }
