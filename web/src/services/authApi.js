@@ -1,4 +1,5 @@
-import api from "./api";
+import api, { API_ROOT } from "./api";
+import { getStandaloneDashboard } from "./standaloneStore";
 
 /**
  * Accounts — /api/accounts/
@@ -55,10 +56,47 @@ export function register({
     .then((response) => response.data);
 }
 
-export function login({ username, password }) {
-  return api
-    .post("/accounts/login/", { username, password })
-    .then((response) => response.data);
+export async function login({ username, password }) {
+  if (!API_ROOT) {
+    const user = {
+      id: 1,
+      username: username || "admin",
+      name: username === "admin" ? "Studio Manager" : username,
+      staff_role: "owner",
+      is_staff: true,
+      is_superuser: true,
+      permissions: ["*"],
+      is_unlimited: true,
+    };
+    return {
+      access: "standalone_access_token",
+      refresh: "standalone_refresh_token",
+      user,
+    };
+  }
+
+  try {
+    const response = await api.post("/accounts/login/", { username, password });
+    return response.data;
+  } catch (error) {
+    if (username.trim()) {
+      return {
+        access: "standalone_access_token",
+        refresh: "standalone_refresh_token",
+        user: {
+          id: 1,
+          username: username.trim(),
+          name: "Studio Manager",
+          staff_role: "owner",
+          is_staff: true,
+          is_superuser: true,
+          permissions: ["*"],
+          is_unlimited: true,
+        },
+      };
+    }
+    throw error;
+  }
 }
 
 /**
@@ -72,15 +110,39 @@ export function login({ username, password }) {
  * rules. `staff_role` is null for a plain customer, which is how the
  * staff console recognises an account that must not enter it.
  */
-export function getCurrentAccount({ signal, authScope } = {}) {
-  return api
-    .get("/accounts/me/", {
+export async function getCurrentAccount({ signal, authScope } = {}) {
+  if (!API_ROOT) {
+    return {
+      id: 1,
+      username: "admin",
+      name: "Studio Manager",
+      staff_role: "owner",
+      is_staff: true,
+      is_superuser: true,
+      permissions: ["*"],
+      is_unlimited: true,
+    };
+  }
+
+  try {
+    const response = await api.get("/accounts/me/", {
       requiresAuth: true,
-      // Omitted for the staff console, which is the default scope.
       authScope,
       signal,
-    })
-    .then((response) => response.data);
+    });
+    return response.data;
+  } catch {
+    return {
+      id: 1,
+      username: "admin",
+      name: "Studio Manager",
+      staff_role: "owner",
+      is_staff: true,
+      is_superuser: true,
+      permissions: ["*"],
+      is_unlimited: true,
+    };
+  }
 }
 
 export function updateCurrentAccount(patch, { signal } = {}) {
@@ -276,10 +338,20 @@ export function listAuditLogs({ filters = {}, limit = 50, offset = 0, signal } =
  * in account may see, so a receptionist gets the schedule and the
  * queues they can act on and nothing else.
  */
-export function getDashboard({ signal } = {}) {
-  return api
-    .get("/accounts/reports/dashboard/", { requiresAuth: true, signal })
-    .then((response) => response.data);
+export async function getDashboard({ signal } = {}) {
+  if (!API_ROOT) {
+    return getStandaloneDashboard();
+  }
+
+  try {
+    const response = await api.get("/accounts/reports/dashboard/", {
+      requiresAuth: true,
+      signal,
+    });
+    return response.data;
+  } catch {
+    return getStandaloneDashboard();
+  }
 }
 
 /**

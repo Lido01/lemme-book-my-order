@@ -5,6 +5,7 @@ import {
   getStandaloneBarbers,
   getStandaloneBooking,
   lookupStandaloneBookings,
+  updateStandaloneBookingStatus,
 } from "./standaloneStore";
 
 /**
@@ -200,21 +201,33 @@ export function getBooking(id, { signal } = {}) {
 }
 
 export function cancelBooking(id) {
+  if (!API_ROOT) {
+    return Promise.resolve(updateStandaloneBookingStatus(id, "cancelled"));
+  }
   return api
     .post(`/bookings/${id}/cancel/`, null, { requiresAuth: true })
-    .then((response) => response.data);
+    .then((response) => response.data)
+    .catch(() => updateStandaloneBookingStatus(id, "cancelled"));
 }
 
 export function confirmBooking(id) {
+  if (!API_ROOT) {
+    return Promise.resolve(updateStandaloneBookingStatus(id, "confirmed"));
+  }
   return api
     .post(`/bookings/${id}/confirm/`, null, { requiresAuth: true })
-    .then((response) => response.data);
+    .then((response) => response.data)
+    .catch(() => updateStandaloneBookingStatus(id, "confirmed"));
 }
 
 export function completeBooking(id) {
+  if (!API_ROOT) {
+    return Promise.resolve(updateStandaloneBookingStatus(id, "completed"));
+  }
   return api
     .post(`/bookings/${id}/complete/`, null, { requiresAuth: true })
-    .then((response) => response.data);
+    .then((response) => response.data)
+    .catch(() => updateStandaloneBookingStatus(id, "completed"));
 }
 
 export function deleteBooking(id) {

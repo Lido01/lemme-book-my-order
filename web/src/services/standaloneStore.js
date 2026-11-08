@@ -2,7 +2,7 @@
  * Standalone Client Storage & Cloud-Ready Store for NOIR Barbers
  * 
  * Works completely independently without requiring a Python backend.
- * Stores bookings, payments, and preferences in localStorage.
+ * Stores bookings, payments, services, barbers, and gallery assets in localStorage.
  * Provides fallback services, barbers, and live availability schedules.
  * Ready to connect with free cloud databases (Supabase, Firebase, etc.).
  */
@@ -14,6 +14,8 @@ const STORAGE_KEYS = {
   BOOKINGS: "noir.cloud.bookings",
   PAYMENTS: "noir.cloud.payments",
   SERVICES: "noir.cloud.services",
+  BARBERS: "noir.cloud.barbers",
+  GALLERY: "noir.cloud.gallery",
   SETTINGS: "noir.cloud.settings",
 };
 
@@ -124,6 +126,15 @@ export const INITIAL_BARBERS = defaultBarbersData.map((b) => ({
   bio: `${b.role} specializing in ${b.specialty}`,
 }));
 
+export const INITIAL_GALLERY = haircuts.map((h, i) => ({
+  id: i + 1,
+  title: h.name,
+  description: h.description,
+  style_name: h.name,
+  is_active: true,
+  image: h.image,
+}));
+
 // Helper to safely read localStorage
 function loadFromStorage(key, fallback) {
   try {
@@ -143,31 +154,135 @@ function saveToStorage(key, data) {
   }
 }
 
-/**
- * Get all available services
- */
+// ------------------------------------------------------------------
+// SERVICES ASSET CRUD
+// ------------------------------------------------------------------
+
 export function getStandaloneServices() {
   const custom = loadFromStorage(STORAGE_KEYS.SERVICES, null);
   return custom || INITIAL_SERVICES;
 }
 
-/**
- * Get all active barbers
- */
-export function getStandaloneBarbers() {
-  return INITIAL_BARBERS;
+export function saveStandaloneService(serviceData) {
+  const services = [...getStandaloneServices()];
+  const id = serviceData.id ? Number(serviceData.id) : Date.now();
+  const existingIdx = services.findIndex((s) => Number(s.id) === id);
+
+  const updated = {
+    id,
+    name: serviceData.name || "Custom Haircut",
+    description: serviceData.description || "",
+    price: String(serviceData.price || "350.00"),
+    duration: Number(serviceData.duration || 45),
+    is_active: serviceData.is_active !== false,
+    image: serviceData.image || haircuts[0]?.image,
+    styles: serviceData.styles || [],
+  };
+
+  if (existingIdx !== -1) {
+    services[existingIdx] = { ...services[existingIdx], ...updated };
+  } else {
+    services.unshift(updated);
+  }
+
+  saveToStorage(STORAGE_KEYS.SERVICES, services);
+  return updated;
 }
 
-/**
- * Calculate available booking slots for a given date
- */
-export function getStandaloneAvailability({ serviceId, bookingDate, barberId }) {
-  const service = getStandaloneServices().find((s) => String(s.id) === String(serviceId));
-  const barber = barberId
-    ? INITIAL_BARBERS.find((b) => String(b.id) === String(barberId))
-    : INITIAL_BARBERS[0];
+export function deleteStandaloneService(id) {
+  const services = getStandaloneServices().filter((s) => Number(s.id) !== Number(id));
+  saveToStorage(STORAGE_KEYS.SERVICES, services);
+  return true;
+}
 
-  // Base shop hours: 09:00 to 20:00 in 45-min / 60-min intervals
+// ------------------------------------------------------------------
+// BARBERS ASSET CRUD
+// ------------------------------------------------------------------
+
+export function getStandaloneBarbers() {
+  const custom = loadFromStorage(STORAGE_KEYS.BARBERS, null);
+  return custom || INITIAL_BARBERS;
+}
+
+export function saveStandaloneBarber(barberData) {
+  const barbers = [...getStandaloneBarbers()];
+  const id = barberData.id ? Number(barberData.id) : Date.now();
+  const existingIdx = barbers.findIndex((b) => Number(b.id) === id);
+
+  const updated = {
+    id,
+    name: barberData.name || "New Barber",
+    role: barberData.role || "Barber",
+    specialty: barberData.specialty || "Precision Fades & Styling",
+    image: barberData.image || "/images/barbers/daniel.webp",
+    is_active: barberData.is_active !== false,
+    bio: barberData.bio || `${barberData.role || "Barber"} at NOIR`,
+  };
+
+  if (existingIdx !== -1) {
+    barbers[existingIdx] = { ...barbers[existingIdx], ...updated };
+  } else {
+    barbers.push(updated);
+  }
+
+  saveToStorage(STORAGE_KEYS.BARBERS, barbers);
+  return updated;
+}
+
+export function deleteStandaloneBarber(id) {
+  const barbers = getStandaloneBarbers().filter((b) => Number(b.id) !== Number(id));
+  saveToStorage(STORAGE_KEYS.BARBERS, barbers);
+  return true;
+}
+
+// ------------------------------------------------------------------
+// GALLERY ASSET CRUD
+// ------------------------------------------------------------------
+
+export function getStandaloneGallery() {
+  const custom = loadFromStorage(STORAGE_KEYS.GALLERY, null);
+  return custom || INITIAL_GALLERY;
+}
+
+export function saveStandaloneGallery(itemData) {
+  const items = [...getStandaloneGallery()];
+  const id = itemData.id ? Number(itemData.id) : Date.now();
+  const existingIdx = items.findIndex((i) => Number(i.id) === id);
+
+  const updated = {
+    id,
+    title: itemData.title || "Studio Style",
+    description: itemData.description || "",
+    style_name: itemData.style_name || itemData.title || "Custom Cut",
+    is_active: itemData.is_active !== false,
+    image: itemData.image || haircuts[0]?.image,
+  };
+
+  if (existingIdx !== -1) {
+    items[existingIdx] = { ...items[existingIdx], ...updated };
+  } else {
+    items.unshift(updated);
+  }
+
+  saveToStorage(STORAGE_KEYS.GALLERY, items);
+  return updated;
+}
+
+export function deleteStandaloneGallery(id) {
+  const items = getStandaloneGallery().filter((i) => Number(i.id) !== Number(id));
+  saveToStorage(STORAGE_KEYS.GALLERY, items);
+  return true;
+}
+
+// ------------------------------------------------------------------
+// AVAILABILITY & BOOKINGS
+// ------------------------------------------------------------------
+
+export function getStandaloneAvailability({ serviceId, bookingDate, barberId }) {
+  const barber = barberId
+    ? getStandaloneBarbers().find((b) => String(b.id) === String(barberId))
+    : getStandaloneBarbers()[0];
+
   const baseSlots = [
     "09:00:00",
     "09:45:00",
@@ -184,7 +299,6 @@ export function getStandaloneAvailability({ serviceId, bookingDate, barberId }) 
     "19:15:00",
   ];
 
-  // Filter out slots already booked in storage
   const bookings = loadFromStorage(STORAGE_KEYS.BOOKINGS, []);
   const bookedForDate = new Set(
     bookings
@@ -192,7 +306,6 @@ export function getStandaloneAvailability({ serviceId, bookingDate, barberId }) 
       .map((b) => b.start_time)
   );
 
-  // Check if slot has already passed for today
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -224,16 +337,14 @@ export function getStandaloneAvailability({ serviceId, bookingDate, barberId }) 
   };
 }
 
-/**
- * Create a new booking in standalone storage
- */
 export function createStandaloneBooking(payload) {
   const bookings = loadFromStorage(STORAGE_KEYS.BOOKINGS, []);
   const services = getStandaloneServices();
   const service = services.find((s) => String(s.id) === String(payload.service)) || services[0];
+  const barbers = getStandaloneBarbers();
   const barber = payload.barber
-    ? INITIAL_BARBERS.find((b) => String(b.id) === String(payload.barber))
-    : INITIAL_BARBERS[0];
+    ? barbers.find((b) => String(b.id) === String(payload.barber))
+    : barbers[0];
 
   const nextNum = (bookings.length + 1).toString().padStart(4, "0");
   const code = `BK-${nextNum}`;
@@ -268,9 +379,6 @@ export function createStandaloneBooking(payload) {
   return newBooking;
 }
 
-/**
- * Get booking by ID or Code
- */
 export function getStandaloneBooking(idOrCode) {
   const bookings = loadFromStorage(STORAGE_KEYS.BOOKINGS, []);
   return bookings.find(
@@ -278,9 +386,18 @@ export function getStandaloneBooking(idOrCode) {
   ) || null;
 }
 
-/**
- * Look up bookings by code and phone
- */
+export function updateStandaloneBookingStatus(id, newStatus) {
+  const bookings = loadFromStorage(STORAGE_KEYS.BOOKINGS, []);
+  const idx = bookings.findIndex((b) => String(b.id) === String(id));
+  if (idx !== -1) {
+    bookings[idx].status = newStatus;
+    bookings[idx].updated_at = new Date().toISOString();
+    saveToStorage(STORAGE_KEYS.BOOKINGS, bookings);
+    return bookings[idx];
+  }
+  return null;
+}
+
 export function lookupStandaloneBookings({ code, phone }) {
   const bookings = loadFromStorage(STORAGE_KEYS.BOOKINGS, []);
   return bookings.filter((b) => {
@@ -290,9 +407,6 @@ export function lookupStandaloneBookings({ code, phone }) {
   });
 }
 
-/**
- * Record a payment for a booking
- */
 export function createStandalonePayment(data) {
   const payments = loadFromStorage(STORAGE_KEYS.PAYMENTS, []);
   const booking = getStandaloneBooking(data.bookingId);
@@ -304,7 +418,7 @@ export function createStandalonePayment(data) {
     booking_status: "confirmed",
     booking_date: booking?.booking_date || new Date().toISOString().slice(0, 10),
     booking_start_time: booking?.start_time || "10:00:00",
-    booking_barber: booking?.barber_name || "Lidetu",
+    booking_barber: booking?.barber_name || "Barber",
     booking_customer: booking?.customer_name || "Customer",
     booking_service: booking?.service_name || "Haircut",
     amount: data.amount || booking?.price || "350.00",
@@ -319,7 +433,6 @@ export function createStandalonePayment(data) {
   payments.unshift(paymentRecord);
   saveToStorage(STORAGE_KEYS.PAYMENTS, payments);
 
-  // Update booking payment status
   if (booking) {
     booking.payment_status = "verified";
     booking.payment_due = false;
@@ -333,4 +446,44 @@ export function createStandalonePayment(data) {
   }
 
   return paymentRecord;
+}
+
+// ------------------------------------------------------------------
+// DASHBOARD AGGREGATE STATS
+// ------------------------------------------------------------------
+
+export function getStandaloneDashboard() {
+  const bookings = loadFromStorage(STORAGE_KEYS.BOOKINGS, []);
+  const payments = loadFromStorage(STORAGE_KEYS.PAYMENTS, []);
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const todayBookings = bookings.filter((b) => b.booking_date === todayStr);
+  const upcomingBookings = bookings.filter((b) => b.booking_date > todayStr);
+
+  const todayRevenue = todayBookings.reduce((sum, b) => sum + (parseFloat(b.price) || 0), 0);
+  const monthRevenue = bookings.reduce((sum, b) => sum + (parseFloat(b.price) || 0), 0);
+
+  return {
+    queues: {
+      bookings_to_confirm: bookings.filter((b) => b.status === "pending").length,
+      payments_to_verify: payments.filter((p) => p.status === "pending").length,
+      payments_outstanding: bookings.filter((b) => b.status === "confirmed" && b.payment_status !== "verified").length,
+      reviews_to_approve: 0,
+    },
+    counts: {
+      bookings: {
+        today: todayBookings.length,
+        upcoming: upcomingBookings.length,
+        completed_today: todayBookings.filter((b) => b.status === "completed").length,
+      },
+      revenue: {
+        today: todayRevenue.toFixed(2),
+        month: monthRevenue.toFixed(2),
+      },
+    },
+    schedules: {
+      today: todayBookings,
+      upcoming: upcomingBookings.slice(0, 6),
+    },
+  };
 }

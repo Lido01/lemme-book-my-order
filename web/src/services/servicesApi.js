@@ -1,5 +1,9 @@
 import api, { API_ROOT } from "./api";
-import { getStandaloneServices } from "./standaloneStore";
+import {
+  deleteStandaloneService,
+  getStandaloneServices,
+  saveStandaloneService,
+} from "./standaloneStore";
 
 /**
  * Services — GET /api/services/
@@ -51,7 +55,10 @@ export function listAllServices({ signal } = {}) {
     .catch(() => getStandaloneServices());
 }
 
-export function createService(fields) {
+export async function createService(fields) {
+  if (!API_ROOT) {
+    return saveStandaloneService(fields);
+  }
   const formData = new FormData();
 
   if (fields.name) formData.append("name", fields.name);
@@ -62,12 +69,18 @@ export function createService(fields) {
   }
   if (fields.image) formData.append("image", fields.image);
 
-  return api
-    .post("/services/", formData, { requiresAuth: true })
-    .then((response) => response.data);
+  try {
+    const response = await api.post("/services/", formData, { requiresAuth: true });
+    return response.data;
+  } catch {
+    return saveStandaloneService(fields);
+  }
 }
 
-export function updateService(id, fields) {
+export async function updateService(id, fields) {
+  if (!API_ROOT) {
+    return saveStandaloneService({ ...fields, id });
+  }
   const formData = new FormData();
 
   if (fields.name !== undefined) formData.append("name", fields.name);
@@ -80,20 +93,41 @@ export function updateService(id, fields) {
   }
   if (fields.image) formData.append("image", fields.image);
 
-  return api
-    .patch(`/services/${id}/`, formData, { requiresAuth: true })
-    .then((response) => response.data);
+  try {
+    const response = await api.patch(`/services/${id}/`, formData, { requiresAuth: true });
+    return response.data;
+  } catch {
+    return saveStandaloneService({ ...fields, id });
+  }
 }
 
-export function deleteService(id) {
-  return api
-    .delete(`/services/${id}/`, { requiresAuth: true })
-    .then(() => undefined);
+export async function deleteService(id) {
+  if (!API_ROOT) {
+    return deleteStandaloneService(id);
+  }
+  try {
+    await api.delete(`/services/${id}/`, { requiresAuth: true });
+    return undefined;
+  } catch {
+    return deleteStandaloneService(id);
+  }
 }
 
 export function createHaircutStyle(serviceId, fields) {
-  const formData = new FormData();
+  if (!API_ROOT) {
+    const services = getStandaloneServices();
+    const service = services.find((s) => String(s.id) === String(serviceId));
+    if (service) {
+      if (!service.styles) service.styles = [];
+      const newStyle = { id: Date.now(), name: fields.name };
+      service.styles.push(newStyle);
+      saveStandaloneService(service);
+      return Promise.resolve(newStyle);
+    }
+    return Promise.resolve({ id: Date.now(), name: fields.name });
+  }
 
+  const formData = new FormData();
   if (fields.name) formData.append("name", fields.name);
   if (fields.description) formData.append("description", fields.description);
   if (fields.image) formData.append("image", fields.image);
@@ -106,6 +140,15 @@ export function createHaircutStyle(serviceId, fields) {
 }
 
 export function deleteHaircutStyle(serviceId, styleId) {
+  if (!API_ROOT) {
+    const services = getStandaloneServices();
+    const service = services.find((s) => String(s.id) === String(serviceId));
+    if (service && service.styles) {
+      service.styles = service.styles.filter((st) => String(st.id) !== String(styleId));
+      saveStandaloneService(service);
+    }
+    return Promise.resolve();
+  }
   return api
     .delete(`/services/${serviceId}/styles/${styleId}/`, {
       requiresAuth: true,

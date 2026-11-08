@@ -141,9 +141,20 @@ export default function AdminLogin() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex min-h-12 w-full items-center justify-center gap-3 border border-console-accent bg-console-accent px-6 py-3 text-sm font-semibold text-console-on-accent transition hover:bg-console-accent-strong disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex min-h-12 w-full items-center justify-center gap-3 border border-console-accent bg-console-accent px-6 py-3 text-sm font-semibold text-console-on-accent transition hover:bg-console-accent-strong disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {submitting ? <Spinner size={15} label="Signing in" /> : "Sign in"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setUsername("admin");
+              setPassword("admin123");
+            }}
+            className="text-xs text-console-accent underline cursor-pointer text-center hover:opacity-80 transition py-1"
+          >
+            Fill Default Admin (admin / admin123)
           </button>
         </form>
 
