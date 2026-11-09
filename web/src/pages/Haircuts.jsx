@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Clock3, X } from "lucide-react";
+import { ArrowUpRight, Clock3, X, Scissors } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import Alert from "../components/ui/Alert";
 import Spinner from "../components/ui/Spinner";
 import { useServices } from "../hooks/useServices";
-import { mediaUrl } from "../services/api";
+import { mediaUrl, DEFAULT_FALLBACK_IMAGE } from "../services/api";
 import { formatDuration, formatPrice } from "../utils/format";
 
 /**
@@ -30,10 +30,20 @@ export default function Haircuts() {
 
       if (styles.length > 0) {
         for (const style of styles) {
-          rows.push({ ...style, service });
+          rows.push({
+            ...style,
+            image: style.image || service.image,
+            category: style.category || service.name,
+            service,
+          });
         }
       } else {
-        rows.push({ ...service, service, isServiceRoot: true });
+        rows.push({
+          ...service,
+          image: service.image,
+          service,
+          isServiceRoot: true,
+        });
       }
     }
 
@@ -70,7 +80,7 @@ export default function Haircuts() {
     <div className="min-h-screen bg-[#090909] px-5 pb-24 pt-28 sm:px-8 lg:px-10">
       <div className="mx-auto max-w-[1440px]">
         {loading && (
-          <div className="mt-14 flex items-center justify-center  border border-white/10 bg-[#111] py-24">
+          <div className="mt-14 flex items-center justify-center border border-white/10 bg-[#111] py-24">
             <Spinner label="Loading haircuts..." />
           </div>
         )}
@@ -87,23 +97,41 @@ export default function Haircuts() {
           </Alert>
         )}
 
-        {!loading && !error && haircuts.length === 0 && (
-          <Alert tone="info" title="Nothing here yet" className="mt-14">
-            The shop hasn't published its collection yet. Check back soon.
-          </Alert>
-        )}
-
-        {!loading && !error && haircuts.length > 0 && (
+        {!loading && !error && (
           <>
-            <div className="mt-10 flex gap-2 overflow-x-auto pb-2">
+            <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+              <div>
+                <span className="text-[10px] uppercase tracking-[.3em] text-[#d6a85f]">
+                  Our Portfolio
+                </span>
+                <h1 className="mt-4 font-serif text-5xl leading-none sm:text-7xl">
+                  Haircuts & Styles
+                </h1>
+                <p className="mt-4 max-w-lg text-sm text-white/55">
+                  Explore bespoke haircuts, modern skin fades, and precision beard sculpting. Choose a look to order directly.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/booking"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#d6a85f] px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-black transition hover:bg-[#e5bd7a]"
+                >
+                  <Scissors size={15} />
+                  Book Appointment
+                </Link>
+              </div>
+            </div>
+
+            <div className="mt-10 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
               {categories.map((item) => (
                 <button
                   key={item}
                   onClick={() => setCategory(item)}
-                  className={`whitespace-nowrap border px-4 py-2 text-xs transition ${
+                  className={`rounded-full px-5 py-2.5 text-xs font-medium uppercase tracking-wider transition cursor-pointer ${
                     category === item
-                      ? "border-[#d6a85f] bg-[#d6a85f] text-black"
-                      : "border-white/10 text-white/50 hover:border-white/40"
+                      ? "bg-[#d6a85f] text-black font-semibold"
+                      : "border border-white/10 bg-[#151515] text-white/70 hover:border-white/20 hover:text-white"
                   }`}
                 >
                   {item}
@@ -112,55 +140,61 @@ export default function Haircuts() {
             </div>
 
             <div className="mt-9 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {shown.map((cut) => (
-                <button
-                  key={`${cut.service?.id || "root"}-${cut.id || cut.name}`}
-                  onClick={() => setSelected(cut)}
-                  className="group relative min-h-[420px]  overflow-hidden border border-white/10 bg-[#111] text-left transition hover:border-[#d6a85f]/50"
-                >
-                  {cut.image ? (
+              {shown.map((cut) => {
+                const imgUrl = cut.image || cut.service?.image;
+                return (
+                  <button
+                    key={`${cut.service?.id || "root"}-${cut.id || cut.name}`}
+                    onClick={() => setSelected(cut)}
+                    className="group relative min-h-[420px] overflow-hidden rounded-2xl border border-white/10 bg-[#111] text-left transition hover:border-[#d6a85f]/50 cursor-pointer"
+                  >
                     <img
-                      src={mediaUrl(cut.image)}
+                      src={mediaUrl(imgUrl)}
                       alt={cut.name}
+                      onError={(e) => {
+                        e.currentTarget.src = DEFAULT_FALLBACK_IMAGE;
+                      }}
                       className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
                     />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#222] to-[#0d0d0d]" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#090909] via-[#090909]/25 to-black/10" />
-                  <div className="absolute left-6 right-6 top-6 flex items-center justify-between">
-                    <span className="font-serif text-4xl text-white/50">
-                      {cut.service?.id || "N"}
-                    </span>
-                    <span className=" border border-white/20 bg-black/30 px-3 py-1 text-[9px] uppercase tracking-widest text-white/80 backdrop-blur">
-                      {cut.service?.name || "NOIR service"}
-                    </span>
-                  </div>
-                  <div className="absolute bottom-6 left-6 right-6">
-                    <div className="flex items-end justify-between gap-4">
-                      <div>
-                        <h2 className="font-serif text-3xl">{cut.name}</h2>
-                        {/* <p className="mt-2 max-w-sm text-xs leading-6 text-white/65">
-                          {cut.description || cut.service?.description}
-                        </p> */}
-                      </div>
-                      <ArrowUpRight
-                        size={22}
-                        className="mb-1 shrink-0 text-[#d6a85f]"
-                      />
-                    </div>
-                    <div className="mt-5 flex justify-between border-t border-white/20 pt-4 text-sm">
-                      <span className="font-semibold">
-                        {formatPrice(cut.service?.price)}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#090909] via-[#090909]/40 to-black/20" />
+                    
+                    <div className="absolute left-5 right-5 top-5 flex items-center justify-between">
+                      <span className="font-serif text-3xl font-bold text-white/40">
+                        {cut.service?.id || "N"}
                       </span>
-                      {/* <span className="flex items-center gap-2 text-white/60">
-                        <Clock3 size={13} />
-                        {formatDuration(cut.service?.duration)}
-                      </span> */}
+                      <span className="rounded-full border border-white/20 bg-black/60 px-3 py-1 text-[9px] uppercase tracking-widest text-[#d6a85f] backdrop-blur">
+                        {cut.service?.name || "Service"}
+                      </span>
                     </div>
-                  </div>
-                </button>
-              ))}
+
+                    <div className="absolute bottom-5 left-5 right-5">
+                      <div className="flex items-end justify-between gap-4">
+                        <div>
+                          <h2 className="font-serif text-3xl font-medium text-white">{cut.name}</h2>
+                          {cut.description && (
+                            <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/65">
+                              {cut.description}
+                            </p>
+                          )}
+                        </div>
+                        <ArrowUpRight
+                          size={22}
+                          className="mb-1 shrink-0 text-[#d6a85f] transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                        />
+                      </div>
+                      <div className="mt-4 flex items-center justify-between border-t border-white/15 pt-3 text-sm">
+                        <span className="font-bold text-white">
+                          {formatPrice(cut.service?.price)}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-xs text-[#d6a85f]">
+                          <Clock3 size={13} />
+                          {formatDuration(cut.service?.duration)}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </>
         )}
@@ -172,63 +206,73 @@ export default function Haircuts() {
 }
 
 function CutModal({ cut, close }) {
-  const hasImage = cut.image;
+  const imageSource = cut.image || cut.service?.image;
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[60] flex items-end bg-black/80 p-3 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6"
+      className="fixed inset-0 z-[60] flex items-end bg-black/85 p-3 backdrop-blur-md sm:items-center sm:justify-center sm:p-6"
       onMouseDown={close}
     >
       <article
-        className="relative max-h-[92svh] w-full max-w-3xl overflow-auto  border border-white/15 bg-[#121212] sm:grid sm:grid-cols-2"
+        className="relative max-h-[92svh] w-full max-w-3xl overflow-auto rounded-3xl border border-white/15 bg-[#121212] sm:grid sm:grid-cols-2"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <button
           onClick={close}
           aria-label="Close details"
-          className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center border border-white/10 bg-black/60 text-white backdrop-blur hover:bg-[#d6a85f] hover:text-black"
+          className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white backdrop-blur transition hover:bg-[#d6a85f] hover:text-black cursor-pointer"
         >
           <X size={18} />
         </button>
 
-        {hasImage ? (
+        <div className="relative h-72 sm:h-full sm:min-h-[480px]">
           <img
-            src={mediaUrl(hasImage)}
+            src={mediaUrl(imageSource)}
             alt={cut.name}
-            className="h-64 w-full object-cover sm:h-full sm:min-h-[470px]"
+            onError={(e) => {
+              e.currentTarget.src = DEFAULT_FALLBACK_IMAGE;
+            }}
+            className="h-full w-full object-cover"
           />
-        ) : (
-          <div className="h-64 w-full bg-gradient-to-br from-[#242424] to-[#0d0d0d] sm:h-full sm:min-h-[470px]" />
-        )}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-transparent sm:hidden" />
+        </div>
 
-        <div className="p-7 sm:p-9">
-          <p className="text-[10px] uppercase tracking-[.3em] text-[#d6a85f]">
-            {cut.service.name}
-          </p>
-          <h2 className="mt-4 font-serif text-5xl leading-none">{cut.name}</h2>
-          <p className="mt-6 text-sm leading-7 text-white/55">
-            {cut.description || cut.service.description}
-          </p>
-          <div className="mt-8 flex justify-between border-y border-white/10 py-5 text-sm">
-            <span>{formatPrice(cut.service.price)}</span>
-            <span>{formatDuration(cut.service.duration)}</span>
+        <div className="flex flex-col justify-between p-7 sm:p-9">
+          <div>
+            <p className="text-[10px] uppercase tracking-[.3em] text-[#d6a85f]">
+              {cut.service?.name || "Service Look"}
+            </p>
+            <h2 className="mt-3 font-serif text-4xl leading-tight sm:text-5xl">{cut.name}</h2>
+            <p className="mt-4 text-sm leading-6 text-white/60">
+              {cut.description || cut.service?.description || "Master barbering tailored to your face shape, head structure, and personal style."}
+            </p>
+            <div className="mt-6 flex justify-between border-y border-white/10 py-4 text-sm">
+              <span className="font-bold text-white">{formatPrice(cut.service?.price)}</span>
+              <span className="flex items-center gap-1.5 text-white/60">
+                <Clock3 size={14} className="text-[#d6a85f]" />
+                {formatDuration(cut.service?.duration)}
+              </span>
+            </div>
           </div>
-          <Link
-            to={`/services/${cut.service.id}`}
-            onClick={close}
-            className="mt-3 block border border-white/15 px-5 py-3 text-center text-sm font-semibold text-white/80 transition hover:border-[#d6a85f]/50 hover:text-white"
-          >
-            View service details
-          </Link>
-          <Link
-            to={`/booking?service=${cut.service.id}`}
-            onClick={close}
-            className="mt-3 block bg-[#d6a85f] px-5 py-3 text-center text-sm font-semibold text-black transition hover:bg-[#e5bd7a]"
-          >
-            Book this look
-          </Link>
+
+          <div className="mt-8 space-y-3">
+            <Link
+              to={`/booking?service=${cut.service?.id || cut.id}`}
+              onClick={close}
+              className="block rounded-xl bg-[#d6a85f] px-5 py-3.5 text-center text-xs font-bold uppercase tracking-wider text-black transition hover:bg-[#e5bd7a]"
+            >
+              Order & Book This Style
+            </Link>
+            <button
+              type="button"
+              onClick={close}
+              className="block w-full rounded-xl border border-white/15 px-5 py-3 text-center text-xs font-medium text-white/70 transition hover:bg-white/5 cursor-pointer"
+            >
+              Back to Styles
+            </button>
+          </div>
         </div>
       </article>
     </div>
