@@ -379,6 +379,17 @@ export function createStandaloneBooking(payload) {
   return newBooking;
 }
 
+export function getStandaloneBookings() {
+  return loadFromStorage(STORAGE_KEYS.BOOKINGS, []);
+}
+
+export function deleteStandaloneBooking(id) {
+  const bookings = loadFromStorage(STORAGE_KEYS.BOOKINGS, []);
+  const updated = bookings.filter((b) => String(b.id) !== String(id));
+  saveToStorage(STORAGE_KEYS.BOOKINGS, updated);
+  return true;
+}
+
 export function getStandaloneBooking(idOrCode) {
   const bookings = loadFromStorage(STORAGE_KEYS.BOOKINGS, []);
   return bookings.find(
