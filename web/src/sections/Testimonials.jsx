@@ -304,7 +304,7 @@ export default function Testimonials() {
 
   return (
     <ParallaxSection
-      image="/media/testimonials/demo-adonay.jpg"
+      image="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1920&q=85"
       overlay="from-black/95 via-black/75 to-black/95"
       contentClassName="py-12 sm:py-14"
     >

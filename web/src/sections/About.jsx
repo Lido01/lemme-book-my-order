@@ -12,7 +12,7 @@ export default function About() {
   return (
     <ParallaxSection
       id="about"
-      image="/media/barbers/lidetu-tesfaye.jpg"
+      image="https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=1920&q=85"
       overlay="from-black/95 via-black/80 to-black/95"
       contentClassName="py-20 sm:py-24"
     >
@@ -28,21 +28,27 @@ export default function About() {
           <div className="space-y-4 border-t border-white/15 pt-6 text-sm text-white/80">
             <p className="flex gap-3">
               <MapPin size={18} className="shrink-0" />{" "}
-              <span>
-                {studioLocation.addressLines.building}
-                <br />
-                {studioLocation.addressLines.street}, {studioLocation.addressLines.city}
-              </span>
+              <span>{studioLocation.address}</span>
             </p>
             <p className="flex gap-3">
               <Clock3 size={18} className="shrink-0" />{" "}
-              <span>{t("findUs.openDaily")}</span>
+              <span>{studioLocation.hours}</span>
             </p>
           </div>
 
-          <Button to="/booking" className="mt-10 bg-[rgb(234,208,167)] text-black hover:bg-[#e5bd7a]">
-            {t("about.cta")}
-          </Button>
+          <div className="mt-8 flex flex-wrap gap-4">
+            <Button
+              href={studioLocation.directionsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="outline"
+            >
+              {t("about.directions")}
+            </Button>
+            <Button href={studioLocation.phoneHref} variant="ghost">
+              {studioLocation.phone}
+            </Button>
+          </div>
         </Reveal>
       </div>
     </ParallaxSection>

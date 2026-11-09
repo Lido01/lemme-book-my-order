@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import { useGallery } from "../hooks/useGallery";
 import { useLanguage } from "../i18n/LanguageContext";
-import { mediaUrl } from "../services/api";
+import { mediaUrl, DEFAULT_FALLBACK_IMAGE } from "../services/api";
 import Alert from "../components/ui/Alert";
 import Spinner from "../components/ui/Spinner";
 import Reveal from "../components/Reveal";
@@ -13,7 +13,7 @@ import ParallaxSection from "../components/ParallaxSection";
  * Image-backed "Recent work" band. The gallery backdrop stays fixed
  * while the cards and links scroll up and overlay it.
  *
- * Fed by GET /api/gallery/gallery/ — no mock data.
+ * Fed by GET /api/gallery/gallery/ or standalone store.
  */
 export default function Gallery({ onSelect }) {
   const { posts, loading, error, reload } = useGallery();
@@ -22,7 +22,7 @@ export default function Gallery({ onSelect }) {
   return (
     <ParallaxSection
       id="gallery"
-      image="/media/gallery/demo-soft-texture.jpg"
+      image="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1920&q=85"
       overlay="from-black/95 via-black/70 to-black/95"
       contentClassName="py-10 sm:py-14"
     >
@@ -79,19 +79,19 @@ export default function Gallery({ onSelect }) {
             >
               <button
                 onClick={() => onSelect(post)}
-                className="relative h-full w-full  overflow-hidden border border-white/10 text-left transition hover:border-[#d6a85f]/50"
+                className="relative h-full w-full  overflow-hidden border border-white/10 text-left transition hover:border-[#d6a85f]/50 cursor-pointer"
               >
                 <img
                   src={mediaUrl(post.image)}
                   alt={post.title}
+                  onError={(e) => {
+                    e.currentTarget.src = DEFAULT_FALLBACK_IMAGE;
+                  }}
                   className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
                 <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-2">
                   <div className="min-w-0">
-                    {/* <p className="text-[9px] uppercase tracking-[.2em] text-[#d6a85f]">
-                      {post.style_name || t("gallery.recentWork")}
-                    </p> */}
                     <p className="mt-1 truncate font-serif text-xl">{post.title}</p>
                   </div>
                   <ArrowUpRight className="mb-1 shrink-0 text-white/80" size={18} />

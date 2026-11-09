@@ -6,7 +6,7 @@ import ParallaxSection from "../components/ParallaxSection";
 import { useServices } from "../hooks/useServices";
 import { useLanguage } from "../i18n/LanguageContext";
 import { formatPrice } from "../utils/format";
-import { mediaUrl } from "../services/api";
+import { mediaUrl, DEFAULT_FALLBACK_IMAGE } from "../services/api";
 
 /**
  * Image-backed "book in under a minute" band. The fixed barber-at-work
@@ -25,7 +25,7 @@ export default function QuickBook() {
 
   return (
     <ParallaxSection
-      image="/media/services/demo-signature-haircut.jpg"
+      image="https://images.unsplash.com/photo-1622296089863-eb7fc530daa8?auto=format&fit=crop&w=1920&q=85"
       overlay="from-black/95 via-black/75 to-black/95"
       contentClassName="py-20 sm:py-24"
     >
@@ -82,6 +82,9 @@ export default function QuickBook() {
                     <img
                       src={mediaUrl(service.image)}
                       alt={service.name}
+                      onError={(e) => {
+                        e.currentTarget.src = DEFAULT_FALLBACK_IMAGE;
+                      }}
                       className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />

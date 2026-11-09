@@ -3,7 +3,6 @@ import axios from "axios";
 import { normaliseApiError } from "../utils/apiError";
 import { tokensForScope } from "../utils/tokenStore";
 
-
 const configuredApiRoot = (import.meta.env.VITE_API_BASE_URL || "").trim();
 const ROOT = configuredApiRoot.replace(/\/+$/, "");
 
@@ -121,32 +120,56 @@ api.interceptors.response.use(
   }
 );
 
+export const DEFAULT_FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1622296089863-eb7fc530daa8?auto=format&fit=crop&w=800&q=80";
+
 /**
- * Resolve a media path returned by Django (`/media/...`) into an
- * absolute URL. Already-absolute URLs pass through untouched.
+ * Resolve a media path returned by Django (`/media/...`) or standalone
+ * store into a clean, working image URL.
+ * Already-absolute URLs, data URIs and blob URIs pass through untouched.
  */
 export function mediaUrl(path) {
-  if (!path) {
-    return null;
+  if (!path || typeof path !== "string") {
+    return DEFAULT_FALLBACK_IMAGE;
   }
 
-  if (/^https?:\/\//i.test(path)) {
-    const url = new URL(path);
-
-    // Django builds absolute media URLs from the request host. When the
-    // frontend is opened through a LAN address, those URLs can still point
-    // at loopback and therefore resolve on the wrong machine.
-    if (
-      url.pathname.startsWith("/media/") &&
-      ["localhost", "127.0.0.1", "0.0.0.0"].includes(url.hostname)
-    ) {
-      return `${ROOT}${url.pathname}${url.search}${url.hash}`;
-    }
-
-    return path;
+  const trimmed = path.trim();
+  if (!trimmed) {
+    return DEFAULT_FALLBACK_IMAGE;
   }
 
-  return `${ROOT}${path.startsWith("/") ? "" : "/"}${path}`;
+  // Base64 data images or object blob URLs
+  if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
+    return trimmed;
+  }
+
+  // Absolute http/https URLs
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const url = new URL(trimmed);
+
+      if (
+        ROOT &&
+        url.pathname.startsWith("/media/") &&
+        ["localhost", "127.0.0.1", "0.0.0.0"].includes(url.hostname)
+      ) {
+        return `${ROOT}${url.pathname}${url.search}${url.hash}`;
+      }
+    } catch (_) {}
+
+    return trimmed;
+  }
+
+  // Legacy mock media paths without backend
+  if (trimmed.startsWith("/media/") && !ROOT) {
+    return DEFAULT_FALLBACK_IMAGE;
+  }
+
+  if (!ROOT) {
+    return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  }
+
+  return `${ROOT}${trimmed.startsWith("/") ? "" : "/"}${trimmed}`;
 }
 
 export default api;
