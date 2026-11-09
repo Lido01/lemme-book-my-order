@@ -101,42 +101,10 @@ export default function Haircuts() {
           <>
             <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
               <div>
-                <span className="text-[10px] uppercase tracking-[.3em] text-[#d6a85f]">
-                  Our Portfolio
-                </span>
                 <h1 className="mt-4 font-serif text-5xl leading-none sm:text-7xl">
                   Haircuts & Styles
                 </h1>
-                <p className="mt-4 max-w-lg text-sm text-white/55">
-                  Explore bespoke haircuts, modern skin fades, and precision beard sculpting. Choose a look to order directly.
-                </p>
               </div>
-
-              <div className="flex items-center gap-3">
-                <Link
-                  to="/booking"
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#d6a85f] px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-black transition hover:bg-[#e5bd7a]"
-                >
-                  <Scissors size={15} />
-                  Book Appointment
-                </Link>
-              </div>
-            </div>
-
-            <div className="mt-10 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-              {categories.map((item) => (
-                <button
-                  key={item}
-                  onClick={() => setCategory(item)}
-                  className={`rounded-full px-5 py-2.5 text-xs font-medium uppercase tracking-wider transition cursor-pointer ${
-                    category === item
-                      ? "bg-[#d6a85f] text-black font-semibold"
-                      : "border border-white/10 bg-[#151515] text-white/70 hover:border-white/20 hover:text-white"
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
             </div>
 
             <div className="mt-9 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -146,7 +114,7 @@ export default function Haircuts() {
                   <button
                     key={`${cut.service?.id || "root"}-${cut.id || cut.name}`}
                     onClick={() => setSelected(cut)}
-                    className="group relative min-h-[420px] overflow-hidden rounded-2xl border border-white/10 bg-[#111] text-left transition hover:border-[#d6a85f]/50 cursor-pointer"
+                    className="group relative min-h-[420px] overflow-hidden  border border-white/10 bg-[#111] text-left transition hover:border-[#d6a85f]/50 cursor-pointer"
                   >
                     <img
                       src={mediaUrl(imgUrl)}
@@ -162,7 +130,7 @@ export default function Haircuts() {
                       <span className="font-serif text-3xl font-bold text-white/40">
                         {cut.service?.id || "N"}
                       </span>
-                      <span className="rounded-full border border-white/20 bg-black/60 px-3 py-1 text-[9px] uppercase tracking-widest text-[#d6a85f] backdrop-blur">
+                      <span className=" border border-white/20 bg-black/60 px-3 py-1 text-[9px] uppercase tracking-widest text-[#d6a85f] backdrop-blur">
                         {cut.service?.name || "Service"}
                       </span>
                     </div>
@@ -216,13 +184,13 @@ function CutModal({ cut, close }) {
       onMouseDown={close}
     >
       <article
-        className="relative max-h-[92svh] w-full max-w-3xl overflow-auto rounded-3xl border border-white/15 bg-[#121212] sm:grid sm:grid-cols-2"
+        className="relative max-h-[92svh] w-full max-w-3xl overflow-auto border border-white/15 bg-[#121212] sm:grid sm:grid-cols-2"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <button
           onClick={close}
           aria-label="Close details"
-          className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white backdrop-blur transition hover:bg-[#d6a85f] hover:text-black cursor-pointer"
+          className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center  border border-white/10 bg-black/70 text-white backdrop-blur transition hover:bg-[#d6a85f] hover:text-black cursor-pointer"
         >
           <X size={18} />
         </button>
@@ -252,7 +220,7 @@ function CutModal({ cut, close }) {
               <span className="font-bold text-white">{formatPrice(cut.service?.price)}</span>
               <span className="flex items-center gap-1.5 text-white/60">
                 <Clock3 size={14} className="text-[#d6a85f]" />
-                {formatDuration(cut.service?.duration)}
+                {/* {formatDuration(cut.service?.duration)} */}
               </span>
             </div>
           </div>
@@ -261,14 +229,14 @@ function CutModal({ cut, close }) {
             <Link
               to={`/booking?service=${cut.service?.id || cut.id}`}
               onClick={close}
-              className="block rounded-xl bg-[#d6a85f] px-5 py-3.5 text-center text-xs font-bold uppercase tracking-wider text-black transition hover:bg-[#e5bd7a]"
+              className="block  bg-[#d6a85f] px-5 py-3.5 text-center text-xs font-bold uppercase tracking-wider text-black transition hover:bg-[#e5bd7a]"
             >
               Order & Book This Style
             </Link>
             <button
               type="button"
               onClick={close}
-              className="block w-full rounded-xl border border-white/15 px-5 py-3 text-center text-xs font-medium text-white/70 transition hover:bg-white/5 cursor-pointer"
+              className="block w-full  border border-white/15 px-5 py-3 text-center text-xs font-medium text-white/70 transition hover:bg-white/5 cursor-pointer"
             >
               Back to Styles
             </button>

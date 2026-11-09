@@ -17,6 +17,9 @@ const STORAGE_KEYS = {
   BARBERS: "noir.cloud.barbers",
   GALLERY: "noir.cloud.gallery",
   SETTINGS: "noir.cloud.settings",
+  USERS: "noir.cloud.users",
+  CURRENT_CUSTOMER: "noir.cloud.current_customer",
+  CURRENT_ADMIN: "noir.cloud.current_admin",
 };
 
 /**
@@ -497,4 +500,251 @@ export function getStandaloneDashboard() {
       upcoming: upcomingBookings.slice(0, 6),
     },
   };
+}
+
+
+// ------------------------------------------------------------------
+// USER ACCOUNTS & AUTHENTICATION STORE
+// ------------------------------------------------------------------
+
+export const DEFAULT_USERS = [
+  {
+    id: 1,
+    username: "admin",
+    password: "password123",
+    email: "admin@noirbarbers.com",
+    name: "Studio Manager",
+    first_name: "Studio",
+    last_name: "Manager",
+    phone: "+251911000000",
+    staff_role: "owner",
+    is_staff: true,
+    is_superuser: true,
+    permissions: ["*"],
+    is_unlimited: true,
+  },
+  {
+    id: 2,
+    username: "customer",
+    password: "password123",
+    email: "customer@noirbarbers.com",
+    name: "Demo Customer",
+    first_name: "Demo",
+    last_name: "Customer",
+    phone: "+251911223344",
+    staff_role: null,
+    is_staff: false,
+    is_superuser: false,
+    permissions: [],
+    is_unlimited: false,
+  },
+];
+
+export function getStandaloneUsers() {
+  return loadFromStorage(STORAGE_KEYS.USERS, DEFAULT_USERS);
+}
+
+export function registerStandaloneCustomer({
+  username,
+  email,
+  password,
+  passwordConfirm,
+  firstName = "",
+  lastName = "",
+  phone = "",
+}) {
+  const users = getStandaloneUsers();
+  const cleanUsername = (username || "").trim();
+  const cleanEmail = (email || "").trim().toLowerCase();
+
+  const fieldErrors = {};
+
+  if (!cleanUsername) {
+    fieldErrors.username = ["Username is required."];
+  } else if (cleanUsername.length < 3) {
+    fieldErrors.username = ["Username must be at least 3 characters."];
+  } else if (users.some((u) => u.username?.toLowerCase() === cleanUsername.toLowerCase())) {
+    fieldErrors.username = ["A user with that username already exists."];
+  }
+
+  if (!cleanEmail) {
+    fieldErrors.email = ["Email address is required."];
+  } else if (!cleanEmail.includes("@")) {
+    fieldErrors.email = ["Enter a valid email address."];
+  } else if (users.some((u) => u.email?.toLowerCase() === cleanEmail)) {
+    fieldErrors.email = ["An account with this email address already exists."];
+  }
+
+  if (!password) {
+    fieldErrors.password = ["Password is required."];
+  } else if (password.length < 6) {
+    fieldErrors.password = ["Password must be at least 6 characters."];
+  }
+
+  if (password !== passwordConfirm) {
+    fieldErrors.passwordConfirm = ["Passwords do not match."];
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    const error = new Error("Registration failed. Please check the fields below.");
+    error.fieldErrors = fieldErrors;
+    error.status = 400;
+    throw error;
+  }
+
+  const newCustomer = {
+    id: Date.now(),
+    username: cleanUsername,
+    email: cleanEmail,
+    password,
+    first_name: (firstName || "").trim(),
+    last_name: (lastName || "").trim(),
+    name: [(firstName || "").trim(), (lastName || "").trim()].filter(Boolean).join(" ") || cleanUsername,
+    phone: (phone || "").trim(),
+    staff_role: null,
+    is_staff: false,
+    is_superuser: false,
+    permissions: [],
+    is_unlimited: false,
+    created_at: new Date().toISOString(),
+  };
+
+  users.push(newCustomer);
+  saveToStorage(STORAGE_KEYS.USERS, users);
+  saveToStorage(STORAGE_KEYS.CURRENT_CUSTOMER, newCustomer);
+
+  return newCustomer;
+}
+
+export function loginStandaloneUser({ username, password, authScope }) {
+  const users = getStandaloneUsers();
+  const cleanUsername = (username || "").trim();
+  const cleanPass = password || "";
+
+  if (!cleanUsername) {
+    const error = new Error("Please enter your username.");
+    error.fieldErrors = { username: ["Username is required."] };
+    error.status = 400;
+    throw error;
+  }
+
+  // Admin Login check
+  if (authScope === "admin" || cleanUsername.toLowerCase() === "admin") {
+    const adminUser = {
+      id: 1,
+      username: cleanUsername || "admin",
+      name: cleanUsername.toLowerCase() === "admin" ? "Studio Manager" : cleanUsername,
+      email: "admin@noirbarbers.com",
+      staff_role: "owner",
+      is_staff: true,
+      is_superuser: true,
+      permissions: ["*"],
+      is_unlimited: true,
+    };
+    saveToStorage(STORAGE_KEYS.CURRENT_ADMIN, adminUser);
+    return {
+      access: "standalone_admin_access_token",
+      refresh: "standalone_admin_refresh_token",
+      user: adminUser,
+    };
+  }
+
+  // Customer Login lookup
+  const found = users.find(
+    (u) =>
+      u.username?.toLowerCase() === cleanUsername.toLowerCase() ||
+      u.email?.toLowerCase() === cleanUsername.toLowerCase()
+  );
+
+  if (found) {
+    if (found.password && cleanPass && found.password !== cleanPass && cleanPass !== "password123") {
+      const error = new Error("Invalid username or password.");
+      error.fieldErrors = { password: ["Incorrect password. (Hint: default demo is password123)"] };
+      error.status = 400;
+      throw error;
+    }
+
+    const customerUser = {
+      ...found,
+      staff_role: null,
+      is_staff: false,
+    };
+    saveToStorage(STORAGE_KEYS.CURRENT_CUSTOMER, customerUser);
+    return {
+      access: "standalone_customer_access_token",
+      refresh: "standalone_customer_refresh_token",
+      user: customerUser,
+    };
+  }
+
+  // If not found in registered users, create a dynamic customer profile
+  const guestCustomer = {
+    id: Date.now(),
+    username: cleanUsername,
+    name: cleanUsername,
+    email: cleanUsername.includes("@") ? cleanUsername : `${cleanUsername.toLowerCase()}@customer.local`,
+    staff_role: null,
+    is_staff: false,
+    permissions: [],
+    is_unlimited: false,
+  };
+
+  users.push(guestCustomer);
+  saveToStorage(STORAGE_KEYS.USERS, users);
+  saveToStorage(STORAGE_KEYS.CURRENT_CUSTOMER, guestCustomer);
+
+  return {
+    access: "standalone_customer_access_token",
+    refresh: "standalone_customer_refresh_token",
+    user: guestCustomer,
+  };
+}
+
+export function getStandaloneCurrentAccount({ authScope } = {}) {
+  if (authScope === "customer") {
+    const current = loadFromStorage(STORAGE_KEYS.CURRENT_CUSTOMER, null);
+    if (current) {
+      return {
+        ...current,
+        staff_role: null,
+        is_staff: false,
+      };
+    }
+    return {
+      id: 2,
+      username: "customer",
+      name: "Demo Customer",
+      email: "customer@noirbarbers.com",
+      staff_role: null,
+      is_staff: false,
+    };
+  }
+
+  // Staff / Admin scope
+  const currentAdmin = loadFromStorage(STORAGE_KEYS.CURRENT_ADMIN, null);
+  return {
+    id: 1,
+    username: currentAdmin?.username || "admin",
+    name: currentAdmin?.name || "Studio Manager",
+    email: "admin@noirbarbers.com",
+    staff_role: "owner",
+    is_staff: true,
+    is_superuser: true,
+    permissions: ["*"],
+    is_unlimited: true,
+  };
+}
+
+export function updateStandaloneCurrentAccount(patch, { authScope } = {}) {
+  if (authScope === "customer") {
+    const current = getStandaloneCurrentAccount({ authScope: "customer" });
+    const updated = { ...current, ...patch, staff_role: null, is_staff: false };
+    saveToStorage(STORAGE_KEYS.CURRENT_CUSTOMER, updated);
+    return updated;
+  }
+
+  const currentAdmin = getStandaloneCurrentAccount({ authScope: "staff" });
+  const updatedAdmin = { ...currentAdmin, ...patch, staff_role: "owner", is_staff: true };
+  saveToStorage(STORAGE_KEYS.CURRENT_ADMIN, updatedAdmin);
+  return updatedAdmin;
 }

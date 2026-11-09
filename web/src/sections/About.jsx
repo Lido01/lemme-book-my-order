@@ -30,10 +30,6 @@ export default function About() {
               <MapPin size={18} className="shrink-0" />{" "}
               <span>{studioLocation.address}</span>
             </p>
-            <p className="flex gap-3">
-              <Clock3 size={18} className="shrink-0" />{" "}
-              <span>{studioLocation.hours}</span>
-            </p>
           </div>
 
           <div className="mt-8 flex flex-wrap gap-4">

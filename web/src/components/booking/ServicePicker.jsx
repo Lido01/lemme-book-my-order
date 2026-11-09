@@ -17,7 +17,7 @@ export default function ServicePicker({
   disabled = false,
 }) {
   const telegram = useTelegram();
-  const [viewMode, setViewMode] = useState("cards"); // "cards" | "dropdown"
+  const [viewMode, setViewMode] = useState("list"); // "cards" | "dropdown"
 
   if (loading) {
     return (

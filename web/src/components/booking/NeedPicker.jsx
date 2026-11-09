@@ -128,30 +128,6 @@ export function NeedPicker({ services = [], selectedId, onPick }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-xs text-white/45">
-        <Sparkles className="h-3.5 w-3.5 text-[#d6a85f]" />
-        <span>Quick intent · tap to jump to matching service</span>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {matches.map((item) => {
-          const isSelected = selectedId === item.service.id;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => onPick(item.service.id)}
-              className={`${CHIP} ${
-                isSelected
-                  ? "border-[#d6a85f] bg-[#d6a85f]/15 text-[#f4f0e8] shadow-[0_0_12px_rgba(214,168,95,0.2)]"
-                  : "border-white/10 bg-[#141414] text-white/70 hover:border-white/20 hover:text-white"
-              }`}
-            >
-              <span>{item.label}</span>
-              <span className="text-[10px] text-white/40">({item.service.name})</span>
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }

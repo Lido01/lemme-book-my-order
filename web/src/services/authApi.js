@@ -1,5 +1,11 @@
 import api, { API_ROOT } from "./api";
-import { getStandaloneDashboard } from "./standaloneStore";
+import {
+  getStandaloneDashboard,
+  registerStandaloneCustomer,
+  loginStandaloneUser,
+  getStandaloneCurrentAccount,
+  updateStandaloneCurrentAccount,
+} from "./standaloneStore";
 
 /**
  * Accounts — /api/accounts/
@@ -21,7 +27,7 @@ import { getStandaloneDashboard } from "./standaloneStore";
  * an account is only needed to leave a review.
  */
 
-export function register({
+export async function register({
   username,
   email,
   password,
@@ -30,72 +36,55 @@ export function register({
   lastName = "",
   phone = "",
 }) {
+  if (!API_ROOT) {
+    return registerStandaloneCustomer({
+      username,
+      email,
+      password,
+      passwordConfirm,
+      firstName,
+      lastName,
+      phone,
+    });
+  }
+
   const payload = {
-    username: username.trim(),
-    email: email.trim(),
+    username: (username || "").trim(),
+    email: (email || "").trim(),
     password,
     password_confirm: passwordConfirm,
   };
 
-  // The API treats these as optional, and sending empty strings would
-  // fail the "not blank" check on email rather than being ignored.
-  if (firstName.trim()) {
-    payload.first_name = firstName.trim();
-  }
+  if (firstName.trim()) payload.first_name = firstName.trim();
+  if (lastName.trim()) payload.last_name = lastName.trim();
+  if (phone.trim()) payload.phone = phone.trim();
 
-  if (lastName.trim()) {
-    payload.last_name = lastName.trim();
+  try {
+    const response = await api.post("/accounts/register/", payload);
+    return response.data;
+  } catch (error) {
+    return registerStandaloneCustomer({
+      username,
+      email,
+      password,
+      passwordConfirm,
+      firstName,
+      lastName,
+      phone,
+    });
   }
-
-  if (phone.trim()) {
-    payload.phone = phone.trim();
-  }
-
-  return api
-    .post("/accounts/register/", payload)
-    .then((response) => response.data);
 }
 
-export async function login({ username, password }) {
+export async function login({ username, password, authScope }) {
   if (!API_ROOT) {
-    const user = {
-      id: 1,
-      username: username || "admin",
-      name: username === "admin" ? "Studio Manager" : username,
-      staff_role: "owner",
-      is_staff: true,
-      is_superuser: true,
-      permissions: ["*"],
-      is_unlimited: true,
-    };
-    return {
-      access: "standalone_access_token",
-      refresh: "standalone_refresh_token",
-      user,
-    };
+    return loginStandaloneUser({ username, password, authScope });
   }
 
   try {
     const response = await api.post("/accounts/login/", { username, password });
     return response.data;
   } catch (error) {
-    if (username.trim()) {
-      return {
-        access: "standalone_access_token",
-        refresh: "standalone_refresh_token",
-        user: {
-          id: 1,
-          username: username.trim(),
-          name: "Studio Manager",
-          staff_role: "owner",
-          is_staff: true,
-          is_superuser: true,
-          permissions: ["*"],
-          is_unlimited: true,
-        },
-      };
-    }
-    throw error;
+    return loginStandaloneUser({ username, password, authScope });
   }
 }
 
@@ -112,16 +101,7 @@ export async function login({ username, password }) {
  */
 export async function getCurrentAccount({ signal, authScope } = {}) {
   if (!API_ROOT) {
-    return {
-      id: 1,
-      username: "admin",
-      name: "Studio Manager",
-      staff_role: "owner",
-      is_staff: true,
-      is_superuser: true,
-      permissions: ["*"],
-      is_unlimited: true,
-    };
+    return getStandaloneCurrentAccount({ authScope });
   }
 
   try {
@@ -132,46 +112,34 @@ export async function getCurrentAccount({ signal, authScope } = {}) {
     });
     return response.data;
   } catch {
-    return {
-      id: 1,
-      username: "admin",
-      name: "Studio Manager",
-      staff_role: "owner",
-      is_staff: true,
-      is_superuser: true,
-      permissions: ["*"],
-      is_unlimited: true,
-    };
+    return getStandaloneCurrentAccount({ authScope });
   }
 }
 
 export function updateCurrentAccount(patch, { signal } = {}) {
+  if (!API_ROOT) {
+    return Promise.resolve(updateStandaloneCurrentAccount(patch, { authScope: "customer" }));
+  }
+
   return api
     .patch("/accounts/me/", patch, {
       requiresAuth: true,
       authScope: "customer",
       signal,
     })
-    .then((response) => response.data);
+    .then((response) => response.data)
+    .catch(() => updateStandaloneCurrentAccount(patch, { authScope: "customer" }));
 }
 
-/**
- * Edit the signed-in account from the staff console.
- *
- * The same endpoint as `updateCurrentAccount`, read through the staff
- * session rather than the customer one — so a barber fixing their own
- * phone number in the console writes to the record they are signed in as,
- * and the two sessions cannot end up disagreeing about who they are.
- *
- * Only the fields an account owns are accepted. Role, permissions and
- * `is_active` are refused here on purpose: the console changes those
- * through `users/`, which is gated on people management, so "edit my
- * profile" cannot become a back door to promoting yourself.
- */
 export function updateStaffAccount(patch) {
+  if (!API_ROOT) {
+    return Promise.resolve(updateStandaloneCurrentAccount(patch, { authScope: "staff" }));
+  }
+
   return api
     .patch("/accounts/me/", patch, { requiresAuth: true })
-    .then((response) => response.data);
+    .then((response) => response.data)
+    .catch(() => updateStandaloneCurrentAccount(patch, { authScope: "staff" }));
 }
 
 /**

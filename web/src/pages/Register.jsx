@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Sparkles, UserPlus } from "lucide-react";
 
 import AuthShell from "../components/account/AuthShell";
 import {
@@ -14,14 +15,7 @@ import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { useLanguage } from "../i18n/LanguageContext";
 
 /**
- * Customer registration — POST /api/accounts/register/ followed by a
- * login, so the customer lands back on the review form signed in.
- *
- * The API decides what a valid account is: username and email must be
- * unique, the two passwords must match, and the password has to clear
- * Django's validators. Field errors come back keyed by field name and
- * are rendered under the right input rather than collapsed into one
- * banner.
+ * Customer registration — creates customer account and logs them in directly
  */
 export default function Register() {
   const navigate = useNavigate();
@@ -48,6 +42,19 @@ export default function Register() {
       ...current,
       [key]: event.target.value,
     }));
+
+  const fillSample = () => {
+    setForm({
+      username: "lidetu",
+      email: "lidosinafanis@gmail.com",
+      firstName: "Lidetu",
+      lastName: "Tesfaye",
+      phone: "+251911223344",
+      password: "password123",
+      passwordConfirm: "password123",
+    });
+    setError(null);
+  };
 
   if (isAuthenticated) {
     return <Navigate to={destination} replace />;
@@ -79,7 +86,7 @@ export default function Register() {
       title={t("account.signUpTitle")}
       lead={t("account.signUpLead")}
       footer={
-        <p className="text-center text-sm text-white/45">
+        <p className="text-center text-sm text-white/50">
           {t("account.haveAccount")}{" "}
           <Link
             to="/login"
@@ -94,8 +101,24 @@ export default function Register() {
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="grid gap-5 border border-white/10 bg-[#111] p-5 sm:p-7"
+        className="grid gap-5 border border-white/10 bg-[#111] p-5 sm:p-7 rounded-2xl"
       >
+        {/* Quick Sample Fill */}
+        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+          <span className="text-xs text-white/60 flex items-center gap-1.5">
+            <UserPlus size={13} className="text-[#d6a85f]" />
+            <span>Sample Account</span>
+          </span>
+          <button
+            type="button"
+            onClick={fillSample}
+            className="flex items-center gap-1 text-[11px] font-semibold text-[#d6a85f] hover:text-[#e5bd7a] transition cursor-pointer"
+          >
+            <Sparkles size={12} />
+            <span>Fill Sample Details</span>
+          </button>
+        </div>
+
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
             <label className={LABEL} htmlFor="register-username">
@@ -106,6 +129,7 @@ export default function Register() {
               id="register-username"
               value={form.username}
               onChange={update("username")}
+              placeholder="e.g. lidetu"
               autoComplete="username"
               autoCapitalize="none"
               spellCheck="false"
@@ -126,6 +150,7 @@ export default function Register() {
               type="email"
               value={form.email}
               onChange={update("email")}
+              placeholder="e.g. name@example.com"
               autoComplete="email"
               autoCapitalize="none"
               spellCheck="false"
@@ -147,6 +172,7 @@ export default function Register() {
               id="register-first-name"
               value={form.firstName}
               onChange={update("firstName")}
+              placeholder="First name"
               autoComplete="given-name"
               disabled={submitting}
               className={INPUT}
@@ -164,6 +190,7 @@ export default function Register() {
               id="register-last-name"
               value={form.lastName}
               onChange={update("lastName")}
+              placeholder="Last name"
               autoComplete="family-name"
               disabled={submitting}
               className={INPUT}
@@ -183,6 +210,7 @@ export default function Register() {
             type="tel"
             value={form.phone}
             onChange={update("phone")}
+            placeholder="+251 91 123 4567"
             autoComplete="tel"
             disabled={submitting}
             className={INPUT}
@@ -201,6 +229,7 @@ export default function Register() {
             type="password"
             value={form.password}
             onChange={update("password")}
+            placeholder="Minimum 6 characters"
             autoComplete="new-password"
             disabled={submitting}
             aria-describedby="register-password-hint"
@@ -209,7 +238,7 @@ export default function Register() {
 
           <p
             id="register-password-hint"
-            className="mt-2 text-[11px] leading-5 text-white/30"
+            className="mt-2 text-[11px] leading-5 text-white/40"
           >
             {t("account.form.passwordHint")}
           </p>
@@ -227,17 +256,18 @@ export default function Register() {
             type="password"
             value={form.passwordConfirm}
             onChange={update("passwordConfirm")}
+            placeholder="Repeat your password"
             autoComplete="new-password"
             disabled={submitting}
             className={INPUT}
           />
 
-          <FieldError message={error?.fieldErrors?.password_confirm} />
+          <FieldError message={error?.fieldErrors?.passwordConfirm} />
         </div>
 
-        {error && !Object.keys(error.fieldErrors || {}).length && (
+        {error && (
           <Alert tone="error" title={t("account.form.errorTitle")}>
-            {error.message}
+            {error.message || "Registration failed. Please check the fields above."}
           </Alert>
         )}
 
@@ -249,7 +279,7 @@ export default function Register() {
           {submitting ? (
             <>
               <Spinner size={15} label={t("account.form.submitting")} />
-              {t("account.form.submitting")}
+              <span>Creating account...</span>
             </>
           ) : (
             t("account.form.submitSignUp")

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Sparkles, ShieldCheck, User } from "lucide-react";
 
 import AuthShell from "../components/account/AuthShell";
 import {
@@ -14,12 +15,7 @@ import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { useLanguage } from "../i18n/LanguageContext";
 
 /**
- * Customer sign-in — POST /api/accounts/login/ with the customer
- * session's token store.
- *
- * The usual reason to land here is the review form: a visitor taps
- * "sign in to review" and comes back to the page they left, which is
- * what `location.state.from` carries.
+ * Customer sign-in — POST /api/accounts/login/ or Standalone store
  */
 export default function Login() {
   const navigate = useNavigate();
@@ -37,6 +33,12 @@ export default function Login() {
   if (isAuthenticated) {
     return <Navigate to={destination} replace />;
   }
+
+  const fillDemoCustomer = () => {
+    setUsername("customer");
+    setPassword("password123");
+    setError(null);
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -64,25 +66,54 @@ export default function Login() {
       title={t("account.signInTitle")}
       lead={t("account.signInLead")}
       footer={
-        <div className="space-y-3 text-center text-sm text-white/45">
+        <div className="space-y-3 text-center text-sm text-white/50">
           <p>
-          {t("account.noAccount")}{" "}
-          <Link
-            to="/register"
-            state={location.state}
-            className="font-semibold text-[#d6a85f] transition hover:text-[#e5bd7a]"
-          >
-            {t("account.createOne")}
-          </Link>
+            {t("account.noAccount")}{" "}
+            <Link
+              to="/register"
+              state={location.state}
+              className="font-semibold text-[#d6a85f] transition hover:text-[#e5bd7a]"
+            >
+              {t("account.createOne")}
+            </Link>
           </p>
+
+          <div className="pt-2 border-t border-white/10">
+            <p className="text-xs text-white/40">
+              Are you staff or shop manager?{" "}
+              <Link
+                to="/admin/login"
+                className="font-medium text-[#d6a85f] transition hover:text-[#e5bd7a] inline-flex items-center gap-1"
+              >
+                <ShieldCheck size={13} />
+                <span>Go to Staff Console →</span>
+              </Link>
+            </p>
+          </div>
         </div>
       }
     >
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="grid gap-5 border-white/10 bg-[#111] p-5 sm:p-7"
+        className="grid gap-5 border border-white/10 bg-[#111] p-5 sm:p-7 rounded-2xl"
       >
+        {/* Quick Demo Fill Pill */}
+        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+          <span className="text-xs text-white/60 flex items-center gap-1.5">
+            <User size={13} className="text-[#d6a85f]" />
+            <span>Customer Demo</span>
+          </span>
+          <button
+            type="button"
+            onClick={fillDemoCustomer}
+            className="flex items-center gap-1 text-[11px] font-semibold text-[#d6a85f] hover:text-[#e5bd7a] transition cursor-pointer"
+          >
+            <Sparkles size={12} />
+            <span>Fill Demo Credentials</span>
+          </button>
+        </div>
+
         <div>
           <label className={LABEL} htmlFor="customer-username">
             {t("account.form.username")}
@@ -92,6 +123,7 @@ export default function Login() {
             id="customer-username"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
+            placeholder="e.g. customer or your username"
             autoComplete="username"
             autoCapitalize="none"
             spellCheck="false"
@@ -112,6 +144,7 @@ export default function Login() {
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            placeholder="••••••••"
             autoComplete="current-password"
             disabled={submitting}
             className={INPUT}
@@ -122,7 +155,7 @@ export default function Login() {
 
         {error && (
           <Alert tone="error" title={t("account.form.errorTitle")}>
-            {error.message}
+            {error.message || "Invalid credentials. Please verify your username and password."}
           </Alert>
         )}
 
@@ -134,7 +167,7 @@ export default function Login() {
           {submitting ? (
             <>
               <Spinner size={15} label={t("account.form.submitting")} />
-              {t("account.form.submitting")}
+              <span>Signing in...</span>
             </>
           ) : (
             t("account.form.submitSignIn")

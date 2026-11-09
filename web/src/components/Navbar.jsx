@@ -81,12 +81,6 @@ export default function Navbar() {
               className="text-[#d6a85f] transition-transform duration-300 group-hover:rotate-[-12deg]"
             />
           </div>
-
-          <div className="leading-none">
-            <div className="font-serif text-lg font-bold tracking-[0.12em] text-white">
-              NOIR
-            </div>
-          </div>
         </Link>
 
         {/* Desktop navigation */}
