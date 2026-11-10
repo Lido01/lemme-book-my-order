@@ -305,6 +305,115 @@ function PaymentRows({
   );
 }
 
+
+function PaymentMobileCard({
+  payment,
+  busy,
+  expanded,
+  onToggle,
+  onVerify,
+  onReject,
+}) {
+  const isPending = payment.status === "pending";
+
+  return (
+    <div className="rounded-xl border border-console-line bg-console-raised p-3.5 transition shadow-xs">
+      <div className="flex items-center justify-between gap-2 border-b border-console-line/60 pb-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-mono text-xs font-bold text-console-accent tracking-wider">
+            #{payment.id}
+          </span>
+          <AdminStatus status={payment.status} />
+        </div>
+        <span className="text-xs font-bold tabular-nums text-console-ink">
+          {formatPrice(payment.amount)}
+        </span>
+      </div>
+
+      <div className="mt-2.5 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h4 className="text-sm font-semibold text-console-ink truncate">
+            {payment.booking_customer || "Customer"}
+          </h4>
+          <p className="text-xs text-console-muted truncate">
+            {payment.booking_service || "Barbering"} · {payment.booking_code || "BK-0000"}
+          </p>
+        </div>
+
+        <div className="text-right shrink-0">
+          <span className="text-xs font-medium text-console-muted">
+            {String(payment.method || "").replace(/_/g, " ") || "Telebirr"}
+          </span>
+          {payment.transaction_reference && (
+            <p className="text-[11px] font-mono text-console-accent truncate max-w-[120px]">
+              {payment.transaction_reference}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div className="mt-3 space-y-2 border-t border-console-line/60 pt-3 text-xs">
+          <div className="rounded-lg bg-console-sunken p-2.5 space-y-1">
+            <div className="flex justify-between">
+              <span className="text-console-muted">Booking:</span>
+              <span className="font-medium text-console-ink">{payment.booking_code || "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-console-muted">Date:</span>
+              <span className="font-medium text-console-ink">{formatDate(payment.booking_date)}</span>
+            </div>
+            {payment.receipt_image && (
+              <div className="pt-2">
+                <span className="text-console-muted block pb-1">Receipt:</span>
+                <img src={mediaUrl(payment.receipt_image)} alt="Receipt" className="max-h-36 rounded border border-console-line object-contain" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-console-line/40 pt-2.5">
+        <div className="flex items-center gap-2">
+          {isPending && (
+            <>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onVerify}
+                className="flex items-center gap-1 rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 text-xs font-semibold hover:bg-emerald-600/30 transition disabled:opacity-50 cursor-pointer"
+              >
+                <Check size={12} />
+                <span>Verify</span>
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onReject}
+                className="flex items-center gap-1 rounded-lg bg-red-600/15 text-red-400 border border-red-500/20 px-2.5 py-1 text-xs font-semibold hover:bg-red-600/25 transition disabled:opacity-50 cursor-pointer"
+              >
+                <X size={12} />
+                <span>Reject</span>
+              </button>
+            </>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex items-center gap-1 text-xs font-medium text-console-accent hover:underline py-1 cursor-pointer"
+        >
+          <span>{expanded ? "Less" : "Details"}</span>
+          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPayments() {
   const { account } = useAdminAuth();
 
@@ -445,7 +554,7 @@ return [
   const activeLabel = FILTERS.find((option) => option.key === filter)?.label;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3.5 sm:space-y-5">
       <AdminPageHeader
         eyebrow="Staff · Management"
         title="Payments"
@@ -522,11 +631,36 @@ return [
             </p>
           </div>
 
-          <AdminTable
-            label="Payments"
-            caption="Payments submitted by customers, with the appointment each one is for."
-            minWidth="min-w-[64rem]"
-          >
+          {/* Mobile card list (< md) */}
+          <div className="space-y-2.5 md:hidden">
+            {shown.map((payment) => (
+              <PaymentMobileCard
+                key={payment.id}
+                payment={payment}
+                busy={busyId === payment.id}
+                expanded={expandedId === payment.id}
+                onToggle={() =>
+                  setExpandedId(
+                    expandedId === payment.id ? null : payment.id
+                  )
+                }
+                onVerify={() => handleVerify(payment)}
+                onReject={() => {
+                  setRejectingId(payment.id);
+                  setReason("");
+                  setActionError(null);
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Desktop Table (>= md) */}
+          <div className="hidden md:block">
+            <AdminTable
+              label="Payments"
+              caption="Payments submitted by customers, with the appointment each one is for."
+              minWidth="min-w-[64rem]"
+            >
             <AdminTableHead>
               <tr>
                 <AdminTableHeadCell sticky width="11rem">
@@ -568,9 +702,10 @@ return [
           </AdminTable>
 
           <AdminTableHint>
-            Swipe the table sideways for the rest of each row. Open a row to
-            read its receipt.
-          </AdminTableHint>
+              Swipe the table sideways for the rest of each row. Open a row to
+              read its receipt.
+            </AdminTableHint>
+          </div>
 
           <p className="text-[11px] leading-5 text-console-muted">
             Bookings are confirmed by reception before payment opens, so

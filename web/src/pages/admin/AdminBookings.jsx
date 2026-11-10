@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FileImage,
   MoveHorizontal,
+  Phone,
   Receipt,
   RefreshCw,
   Trash2,
@@ -573,6 +574,142 @@ function BookingRows({
   );
 }
 
+
+function BookingMobileCard({
+  booking,
+  code,
+  money,
+  payable,
+  payment,
+  busy,
+  available,
+  expanded,
+  copied,
+  canSeePayments,
+  canVerifyPayments,
+  onToggle,
+  onCopy,
+  onAction,
+  onVerify,
+  onReject,
+}) {
+  return (
+    <div className="rounded-xl border border-console-line bg-console-raised p-3.5 transition shadow-xs">
+      <div className="flex items-center justify-between gap-2 border-b border-console-line/60 pb-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-mono text-xs font-bold text-console-accent tracking-wider">
+            {code}
+          </span>
+          <button
+            type="button"
+            onClick={onCopy}
+            title={"Copy " + code}
+            className="rounded-full border border-console-line p-1 text-console-muted transition hover:border-console-accent hover:text-console-accent cursor-pointer"
+          >
+            {copied ? <Check size={10} /> : <Copy size={10} />}
+          </button>
+          <AdminStatus status={booking.status} />
+        </div>
+        <span className="text-xs font-bold tabular-nums text-console-ink">
+          {formatPrice(booking.price)}
+        </span>
+      </div>
+
+      <div className="mt-2.5 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h4 className="text-sm font-semibold text-console-ink truncate">
+            {booking.customer_name}
+          </h4>
+          <p className="text-xs text-console-muted truncate">
+            {booking.service_name || "—"} {booking.barber_name ? "· " + booking.barber_name : ""}
+          </p>
+        </div>
+
+        <div className="text-right shrink-0">
+          <p className="text-xs font-medium text-console-ink">
+            {formatDate(booking.booking_date).replace(/, \d{4}$/, "")}
+          </p>
+          <p className="text-[11px] font-semibold tabular-nums text-console-accent-strong">
+            {formatTimeRange(booking.start_time, booking.end_time)}
+          </p>
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div className="mt-3 space-y-2.5 border-t border-console-line/60 pt-3 text-xs">
+          {booking.notes && (
+            <div>
+              <span className="text-[10px] uppercase font-bold text-console-muted tracking-wider">Notes:</span>
+              <p className="text-console-body italic mt-0.5">{booking.notes}</p>
+            </div>
+          )}
+          {canSeePayments && payment && (
+            <div className="rounded-lg bg-console-sunken p-2.5 space-y-1">
+              <div className="flex justify-between">
+                <span className="text-console-muted">Method:</span>
+                <span className="font-medium text-console-ink">{String(payment.method || "").replace(/_/g, " ") || "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-console-muted">Reference:</span>
+                <span className="font-mono text-console-accent">{payment.transaction_reference || "—"}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-console-line/40 pt-2.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {booking.customer_phone && (
+            <a
+              href={"tel:" + booking.customer_phone}
+              className="flex items-center gap-1 rounded-lg border border-console-line bg-console px-2.5 py-1 text-xs text-console-ink hover:border-console-accent transition"
+            >
+              <Phone size={12} className="text-emerald-500" />
+              <span>Call</span>
+            </a>
+          )}
+
+          {available?.confirm && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onAction(available.confirm)}
+              className="flex items-center gap-1 rounded-lg bg-console-accent px-2.5 py-1 text-xs font-semibold text-console-on-accent hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
+            >
+              <Check size={12} />
+              <span>Confirm</span>
+            </button>
+          )}
+
+          {available?.complete && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onAction(available.complete)}
+              className="flex items-center gap-1 rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 text-xs font-semibold hover:bg-emerald-600/30 transition disabled:opacity-50 cursor-pointer"
+            >
+              <CheckCheck size={12} />
+              <span>Done</span>
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex items-center gap-1 text-xs font-medium text-console-accent hover:underline py-1 cursor-pointer"
+        >
+          <span>{expanded ? "Less" : "Details"}</span>
+          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminBookings() {
   const { account } = useAdminAuth();
 
@@ -817,7 +954,7 @@ export default function AdminBookings() {
   const activeLabel = FILTERS.find((option) => option.key === filter)?.label;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3.5 sm:space-y-5">
       <AdminPageHeader
         eyebrow="Staff · Management"
         title="Bookings"
@@ -895,11 +1032,54 @@ export default function AdminBookings() {
             </p>
           </div>
 
-          <AdminTable
-            label="Bookings"
-            caption="Every appointment with its customer, service, time and payment state."
-            minWidth="min-w-[64rem]"
-          >
+          {/* Mobile card list (< md) */}
+          <div className="space-y-2.5 md:hidden">
+            {shown.map((booking) => {
+              const busy = busyId === booking.id;
+              const available = actionsFor(booking.status);
+              const money = paymentState(booking);
+              const payable = isPayable(booking);
+              const code = bookingCodeOf(booking);
+              const payment = booking.payment;
+              const expanded = expandedId === booking.id;
+
+              return (
+                <BookingMobileCard
+                  key={booking.id}
+                  booking={booking}
+                  code={code}
+                  money={money}
+                  payable={payable}
+                  payment={payment}
+                  busy={busy}
+                  available={available}
+                  expanded={expanded}
+                  copied={copiedId === booking.id}
+                  canSeePayments={canSeePayments}
+                  canVerifyPayments={canVerifyPayments}
+                  onToggle={() =>
+                    setExpandedId(expanded ? null : booking.id)
+                  }
+                  onCopy={() => copyCode(booking)}
+                  onAction={(action) => runAction(booking, action)}
+                  onVerify={() => handleVerifyPayment(booking)}
+                  onReject={() => {
+                    setRejectingId(payment?.id ?? null);
+                    setReason("");
+                    setActionError(null);
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Desktop Table (>= md) */}
+          <div className="hidden md:block">
+            <AdminTable
+              label="Bookings"
+              caption="Every appointment with its customer, service, time and payment state."
+              minWidth="min-w-[64rem]"
+            >
             <AdminTableHead>
               <tr>
                 <AdminTableHeadCell sticky width="11rem">
@@ -957,9 +1137,10 @@ export default function AdminBookings() {
           </AdminTable>
 
           <AdminTableHint>
-            Swipe the table sideways for the rest of each row. Open a row
-            for its notes and receipt.
-          </AdminTableHint>
+              Swipe the table sideways for the rest of each row. Open a row
+              for its notes and receipt.
+            </AdminTableHint>
+          </div>
 
           <p className="text-[11px] leading-5 text-console-muted">
             Confirm the booking first — payment opens after that. Verifying a

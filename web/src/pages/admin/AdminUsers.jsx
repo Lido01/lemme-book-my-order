@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 import {
   Check,
+  ChevronDown,
+  ChevronUp,
+  Mail,
+  Phone,
   Copy,
   KeyRound,
   MoveHorizontal,
@@ -112,6 +116,145 @@ function draftFor(user) {
     role: user.role === "owner" ? "owner" : user.role || "customer",
     permissions: [...(user.permissions || [])].filter((item) => item !== "*"),
   };
+}
+
+
+function UserMobileCard({
+  user,
+  locked,
+  viewer,
+  startEdit,
+  setResetFor,
+  setIssued,
+  setActionError,
+  toggleActive,
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ");
+
+  return (
+    <div className="rounded-xl border border-console-border bg-console-card p-3 shadow-xs transition hover:border-console-accent/40">
+      <div
+        className="flex cursor-pointer items-start justify-between gap-2"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-xs font-semibold text-console-ink">
+              @{user.username}
+            </span>
+            <AdminChip
+              tone={
+                user.role === "admin" || user.role === "owner"
+                  ? "info"
+                  : user.role === "customer"
+                    ? "neutral"
+                    : "good"
+              }
+            >
+              {staffRoleLabel(user.role)}
+            </AdminChip>
+            {!user.is_active && <AdminChip tone="bad">Disabled</AdminChip>}
+            {user.id === viewer?.id && <AdminChip tone="warn">You</AdminChip>}
+          </div>
+
+          <div className="mt-1 text-sm font-medium text-console-ink">
+            {fullName || <span className="text-console-muted">No name set</span>}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="rounded p-1 text-console-muted hover:text-console-ink"
+          aria-label={expanded ? "Collapse" : "Expand"}
+        >
+          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-console-muted">
+        {user.email && (
+          <a
+            href={"mailto:" + user.email}
+            className="inline-flex items-center gap-1 text-console-body hover:text-console-accent break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Mail size={12} className="shrink-0" />
+            {user.email}
+          </a>
+        )}
+        {user.phone && (
+          <a
+            href={"tel:" + user.phone}
+            className="inline-flex items-center gap-1 text-console-body hover:text-console-accent"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Phone size={12} className="shrink-0" />
+            {user.phone}
+          </a>
+        )}
+      </div>
+
+      {expanded && (
+        <div className="mt-3 border-t border-console-border/70 pt-2.5 text-xs">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-console-muted">
+            Capabilities
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {user.permissions?.length > 0 ? (
+              user.permissions.map((perm) => (
+                <AdminChip key={perm}>{perm}</AdminChip>
+              ))
+            ) : user.role === "admin" || user.role === "owner" ? (
+              <span className="text-console-muted">All capabilities (held by role)</span>
+            ) : (
+              <span className="text-console-faint">None</span>
+            )}
+          </div>
+
+          {locked && (
+            <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-console-warn/10 p-2 text-[11px] text-console-warn">
+              <ShieldCheck size={14} className="mt-0.5 shrink-0" />
+              <span>{locked}</span>
+            </div>
+          )}
+
+          <div className="mt-3 flex flex-wrap gap-2 pt-1">
+            <AdminButton
+              icon={UserCog}
+              disabled={Boolean(locked)}
+              onClick={() => startEdit(user)}
+            >
+              Edit
+            </AdminButton>
+
+            {!user.is_superuser && (
+              <>
+                <AdminButton
+                  icon={KeyRound}
+                  onClick={() => {
+                    setResetFor(user);
+                    setIssued(null);
+                    setActionError(null);
+                  }}
+                >
+                  Reset password
+                </AdminButton>
+
+                <AdminButton
+                  tone={user.is_active ? "danger" : "neutral"}
+                  disabled={user.id === viewer?.id}
+                  onClick={() => toggleActive(user)}
+                >
+                  {user.is_active ? "Disable" : "Enable"}
+                </AdminButton>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AdminUsers() {
@@ -364,7 +507,7 @@ export default function AdminUsers() {
   const fieldError = (name) => actionError?.fieldErrors?.[name];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3.5 sm:space-y-5">
       <AdminPageHeader
         eyebrow="People"
         title="User management"
@@ -467,11 +610,30 @@ export default function AdminUsers() {
             </p>
           </div>
 
-          <AdminTable
-            label="Accounts"
-            caption="Every customer and team account, with its role and what it may do."
-            minWidth="min-w-[66rem]"
-          >
+          {/* Mobile card list for small screens */}
+          <div className="space-y-2.5 md:hidden">
+            {rows.map((user) => (
+              <UserMobileCard
+                key={user.id}
+                user={user}
+                locked={lockReason(user)}
+                viewer={viewer}
+                startEdit={startEdit}
+                setResetFor={setResetFor}
+                setIssued={setIssued}
+                setActionError={setActionError}
+                toggleActive={toggleActive}
+              />
+            ))}
+          </div>
+
+          {/* Full table for medium+ screens */}
+          <div className="hidden md:block">
+            <AdminTable
+              label="Accounts"
+              caption="Every customer and team account, with its role and what it may do."
+              minWidth="min-w-[66rem]"
+            >
             <AdminTableHead>
               <tr>
                 <AdminTableHeadCell sticky width="10rem">
@@ -613,8 +775,9 @@ export default function AdminUsers() {
           </AdminTable>
 
           <AdminTableHint>
-            Swipe the table sideways for the rest of each row.
-          </AdminTableHint>
+              Swipe the table sideways for the rest of each row.
+            </AdminTableHint>
+          </div>
         </>
       )}
 

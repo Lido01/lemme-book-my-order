@@ -1,6 +1,8 @@
 import { useState } from "react";
 import {
   Check,
+  ChevronDown,
+  ChevronUp,
   Copy,
   Mail,
   MoveHorizontal,
@@ -96,6 +98,126 @@ const BLANK = {
   phone: "",
   password: "",
 };
+
+
+function CustomerMobileCard({
+  customer,
+  busy,
+  canManage,
+  canDelete,
+  setEditing,
+  setEdit,
+  setActionError,
+  toggleActive,
+  handleDelete,
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const name = customer.full_name || customer.username;
+
+  return (
+    <div className="rounded-xl border border-console-border bg-console-card p-3 shadow-xs transition hover:border-console-accent/40">
+      <div
+        className="flex cursor-pointer items-start justify-between gap-2"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-xs font-semibold text-console-ink">
+              @{customer.username}
+            </span>
+            {!customer.is_active ? (
+              <AdminStatus status="disabled" />
+            ) : (
+              <AdminChip tone="good">Active</AdminChip>
+            )}
+          </div>
+          <div className="mt-1 text-sm font-medium text-console-ink">
+            {name}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="rounded p-1 text-console-muted hover:text-console-ink"
+          aria-label={expanded ? "Collapse" : "Expand"}
+        >
+          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-console-muted">
+        {customer.email && (
+          <a
+            href={"mailto:" + customer.email}
+            className="inline-flex items-center gap-1 text-console-body hover:text-console-accent break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Mail size={12} className="shrink-0" />
+            {customer.email}
+          </a>
+        )}
+        {customer.phone && (
+          <a
+            href={"tel:" + customer.phone}
+            className="inline-flex items-center gap-1 text-console-body hover:text-console-accent"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Phone size={12} className="shrink-0" />
+            {customer.phone}
+          </a>
+        )}
+        {customer.created_at && (
+          <span className="text-[11px] text-console-faint">
+            Joined {formatDate(customer.created_at)}
+          </span>
+        )}
+      </div>
+
+      {expanded && canManage && (
+        <div className="mt-3 border-t border-console-border/70 pt-2.5">
+          <div className="flex flex-wrap gap-2">
+            <AdminButton
+              icon={Pencil}
+              loading={busy}
+              onClick={() => {
+                setEditing(customer);
+                setEdit({
+                  email: customer.email || "",
+                  first_name: customer.first_name || "",
+                  last_name: customer.last_name || "",
+                  phone: customer.phone || "",
+                  is_active: customer.is_active,
+                });
+                setActionError(null);
+              }}
+            >
+              Edit
+            </AdminButton>
+
+            <AdminButton
+              tone={customer.is_active ? "danger" : "neutral"}
+              loading={busy}
+              onClick={() => toggleActive(customer)}
+            >
+              {customer.is_active ? "Disable" : "Enable"}
+            </AdminButton>
+
+            {canDelete && (
+              <AdminConfirmButton
+                icon={Trash2}
+                loading={busy}
+                message={"Permanently delete " + customer.username + "? This cannot be undone. If they have left reviews the server will refuse and you should disable them instead."}
+                onConfirm={() => handleDelete(customer)}
+              >
+                Delete
+              </AdminConfirmButton>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminCustomers() {
   const { account } = useAdminAuth();
@@ -263,7 +385,7 @@ export default function AdminCustomers() {
   const fieldError = (name) => actionError?.fieldErrors?.[name];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3.5 sm:space-y-5">
       <AdminPageHeader
         eyebrow="Staff · Customer care"
         title="Customers"
@@ -356,11 +478,31 @@ export default function AdminCustomers() {
             </p>
           </div>
 
-          <AdminTable
-            label="Customers"
-            caption="Registered customer accounts, with their contact details and when they joined."
-            minWidth="min-w-[62rem]"
-          >
+          {/* Mobile card list for small screens */}
+          <div className="space-y-2.5 md:hidden">
+            {customers.map((customer) => (
+              <CustomerMobileCard
+                key={customer.id}
+                customer={customer}
+                busy={busyId === customer.id}
+                canManage={canManage}
+                canDelete={canDelete}
+                setEditing={setEditing}
+                setEdit={setEdit}
+                setActionError={setActionError}
+                toggleActive={toggleActive}
+                handleDelete={handleDelete}
+              />
+            ))}
+          </div>
+
+          {/* Full table for medium+ screens */}
+          <div className="hidden md:block">
+            <AdminTable
+              label="Customers"
+              caption="Registered customer accounts, with their contact details and when they joined."
+              minWidth="min-w-[62rem]"
+            >
             <AdminTableHead>
               <tr>
                 <AdminTableHeadCell sticky width="10rem">
@@ -488,8 +630,9 @@ export default function AdminCustomers() {
           </AdminTable>
 
           <AdminTableHint>
-            Swipe the table sideways for the rest of each row.
-          </AdminTableHint>
+              Swipe the table sideways for the rest of each row.
+            </AdminTableHint>
+          </div>
         </>
       )}
 

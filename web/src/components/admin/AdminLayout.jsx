@@ -338,7 +338,7 @@ export default function AdminLayout({ children }) {
           a second one is invalid - screen readers announce the landmark
           list with a duplicate and no way to tell them apart. */}
       <div className="lg:pl-64">
-        <div className="mx-auto w-full max-w-[1500px] px-4 pb-10 pt-5 sm:px-6 sm:pt-7 lg:px-8 lg:pb-12">
+        <div className="mx-auto w-full max-w-[1500px] px-2.5 pb-6 pt-3 sm:px-6 sm:pt-7 lg:px-8 lg:pb-12">
           {children}
         </div>
       </div>
