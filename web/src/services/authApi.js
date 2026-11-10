@@ -5,6 +5,9 @@ import {
   loginStandaloneUser,
   getStandaloneCurrentAccount,
   updateStandaloneCurrentAccount,
+  getStandaloneUsers,
+  saveStandaloneUser,
+  deleteStandaloneUser,
 } from "./standaloneStore";
 
 /**
@@ -178,13 +181,26 @@ export function changePassword({ currentPassword, newPassword, confirmPassword }
  * POST needs `customers.manage`; the list needs only `customers.view`.
  */
 export function listRegisteredCustomers({ query = "", signal } = {}) {
+  if (!API_ROOT) {
+    const users = getStandaloneUsers();
+    const q = query.trim().toLowerCase();
+    return Promise.resolve(
+      users
+        .filter((u) => !u.staff_role || u.staff_role === "customer")
+        .filter((u) => !q || u.username?.toLowerCase().includes(q) || u.name?.toLowerCase().includes(q))
+    );
+  }
   return api
     .get("/accounts/customers/", {
       requiresAuth: true,
       params: query.trim() ? { q: query.trim() } : undefined,
       signal,
     })
-    .then((response) => response.data);
+    .then((response) => response.data)
+    .catch(() => {
+      const users = getStandaloneUsers();
+      return users.filter((u) => !u.staff_role || u.staff_role === "customer");
+    });
 }
 
 /**
@@ -244,9 +260,20 @@ export function deleteCustomer(id) {
  * There is one row, created on first read, so this never 404s.
  */
 export function getShopSettings({ signal } = {}) {
+  const defaultSettings = {
+    name: "LX Barbers",
+    phone: "+251911000000",
+    email: "contact@lxbarbers.com",
+    address: "Bole Medhanialem, Addis Ababa",
+    currency: "ETB",
+    opening_time: "09:00",
+    closing_time: "20:00",
+  };
+  if (!API_ROOT) return Promise.resolve(defaultSettings);
   return api
     .get("/accounts/settings/", { requiresAuth: true, signal })
-    .then((response) => response.data);
+    .then((response) => response.data)
+    .catch(() => defaultSettings);
 }
 
 export function updateShopSettings(patch) {
@@ -257,7 +284,16 @@ export function updateShopSettings(patch) {
 
 /** Owner and administrator only. Staff access records. */
 export function listStaffAccess() {
-  return api.get("/accounts/staff/", { requiresAuth: true }).then((response) => response.data);
+  if (!API_ROOT) {
+    const users = getStandaloneUsers();
+    return Promise.resolve(users.filter((u) => u.is_staff || (u.staff_role && u.staff_role !== "customer")));
+  }
+  return api.get("/accounts/staff/", { requiresAuth: true })
+    .then((response) => response.data)
+    .catch(() => {
+      const users = getStandaloneUsers();
+      return users.filter((u) => u.is_staff || (u.staff_role && u.staff_role !== "customer"));
+    });
 }
 
 export function createStaffAccess(payload) {
@@ -285,17 +321,19 @@ export function updateStaffAccess(id, payload) {
  * @returns {Promise<{count, limit, offset, has_more, results}>}
  */
 export function listAuditLogs({ filters = {}, limit = 50, offset = 0, signal } = {}) {
+  if (!API_ROOT) {
+    return Promise.resolve({ count: 0, limit, offset, has_more: false, results: [] });
+  }
   const params = { limit, offset };
-
   for (const [key, value] of Object.entries(filters)) {
     if (value !== "" && value !== null && value !== undefined) {
       params[key] = value;
     }
   }
-
   return api
     .get("/accounts/audit-logs/", { requiresAuth: true, params, signal })
-    .then((response) => response.data);
+    .then((response) => response.data)
+    .catch(() => ({ count: 0, limit, offset, has_more: false, results: [] }));
 }
 
 /**
@@ -329,19 +367,34 @@ export async function getDashboard({ signal } = {}) {
  * download every account to find the administrators.
  */
 export function listManagedUsers({ query = "", role = "", signal } = {}) {
+  if (!API_ROOT) {
+    const users = getStandaloneUsers();
+    const q = query.trim().toLowerCase();
+    const filtered = users.filter((u) => {
+      const matchRole = !role || (role === "customer" ? !u.staff_role || u.staff_role === "customer" : u.staff_role === role);
+      if (!matchRole) return false;
+      if (!q) return true;
+      return (
+        u.username?.toLowerCase().includes(q) ||
+        u.name?.toLowerCase().includes(q) ||
+        u.email?.toLowerCase().includes(q) ||
+        u.phone?.toLowerCase().includes(q)
+      );
+    });
+    return Promise.resolve(filtered);
+  }
+
   const params = {};
-
-  if (query.trim()) {
-    params.q = query.trim();
-  }
-
-  if (role) {
-    params.role = role;
-  }
+  if (query.trim()) params.q = query.trim();
+  if (role) params.role = role;
 
   return api
     .get("/accounts/users/", { requiresAuth: true, params, signal })
-    .then((response) => response.data);
+    .then((response) => response.data)
+    .catch(() => {
+      const users = getStandaloneUsers();
+      return users;
+    });
 }
 
 /**
@@ -394,9 +447,13 @@ export function createManagedUser({
  * the console renders - never an optimistic local guess.
  */
 export function updateManagedUser(id, payload) {
+  if (!API_ROOT) {
+    return Promise.resolve(saveStandaloneUser({ id, ...payload }));
+  }
   return api
     .patch(`/accounts/users/${id}/`, payload, { requiresAuth: true })
-    .then((response) => response.data);
+    .then((response) => response.data)
+    .catch(() => saveStandaloneUser({ id, ...payload }));
 }
 
 export function resetManagedUserPassword(id, password = "") {

@@ -478,6 +478,7 @@ export function getStandaloneDashboard() {
   const monthRevenue = bookings.reduce((sum, b) => sum + (parseFloat(b.price) || 0), 0);
 
   return {
+    today: todayStr,
     queues: {
       bookings_to_confirm: bookings.filter((b) => b.status === "pending").length,
       payments_to_verify: payments.filter((p) => p.status === "pending").length,
@@ -495,9 +496,13 @@ export function getStandaloneDashboard() {
         month: monthRevenue.toFixed(2),
       },
     },
+    schedule: {
+      today: todayBookings,
+      upcoming: upcomingBookings.slice(0, 10),
+    },
     schedules: {
       today: todayBookings,
-      upcoming: upcomingBookings.slice(0, 6),
+      upcoming: upcomingBookings.slice(0, 10),
     },
   };
 }
@@ -543,6 +548,29 @@ export const DEFAULT_USERS = [
 export function getStandaloneUsers() {
   return loadFromStorage(STORAGE_KEYS.USERS, DEFAULT_USERS);
 }
+export function saveStandaloneUser(userData) {
+  const users = getStandaloneUsers();
+  const idx = users.findIndex((u) => String(u.id) === String(userData.id));
+  if (idx !== -1) {
+    users[idx] = { ...users[idx], ...userData };
+  } else {
+    users.push({
+      ...userData,
+      id: userData.id || Date.now(),
+      created_at: new Date().toISOString(),
+    });
+  }
+  saveToStorage(STORAGE_KEYS.USERS, users);
+  return users.find((u) => String(u.id) === String(userData.id)) || userData;
+}
+
+export function deleteStandaloneUser(id) {
+  const users = getStandaloneUsers();
+  const filtered = users.filter((u) => String(u.id) !== String(id));
+  saveToStorage(STORAGE_KEYS.USERS, filtered);
+  return true;
+}
+
 
 export function registerStandaloneCustomer({
   username,

@@ -180,8 +180,12 @@ export default function AdminOverview() {
 
   const todayCount = data?.counts?.bookings?.today ?? 0;
 
+  const schedule = data?.schedule || data?.schedules || { today: [], upcoming: [] };
+  const todayList = Array.isArray(schedule.today) ? schedule.today : [];
+  const upcomingList = Array.isArray(schedule.upcoming) ? schedule.upcoming : [];
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-3.5 sm:space-y-5">
       <AdminPageHeader
         eyebrow={`${staffRoleLabel(account?.staff_role)} console`}
         title={`Good to see you, ${account?.username || "there"}`}
@@ -370,7 +374,7 @@ export default function AdminOverview() {
                       data as cards, because a 6-column grid at 360px is
                       60px per column and unreadable. */}
                   <ul className="hidden divide-y divide-console-line sm:block">
-                    {data.schedule.today.map((booking) => {
+                    {todayList.map((booking) => {
                       const busy = busyId === booking.id;
                       const actionable =
                         canManageBookings &&
@@ -453,7 +457,7 @@ export default function AdminOverview() {
                   </ul>
 
                   <ul className="grid gap-2 sm:hidden">
-                    {data.schedule.today.map((booking) => {
+                    {todayList.map((booking) => {
                       const busy = busyId === booking.id;
                       const actionable =
                         canManageBookings &&
@@ -538,13 +542,13 @@ export default function AdminOverview() {
             </AdminSection>
           )}
 
-          {can("bookings") && data.schedule.upcoming.length > 0 && (
+          {can("bookings") && upcomingList.length > 0 && (
             <AdminSection
               title="The week ahead"
               description="The next seven days, so a quiet one can be covered before it is empty."
             >
               <ul className="divide-y divide-console-line">
-                {data.schedule.upcoming.map((booking) => (
+                {upcomingList.map((booking) => (
                   <li
                     key={booking.id}
                     className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 first:pt-0 last:pb-0"
@@ -583,7 +587,7 @@ export default function AdminOverview() {
             </AdminSection>
           )}
 
-          {can("bookings") && data.schedule.today.length > 0 && (
+          {can("bookings") && todayList.length > 0 && (
             <AdminPanel>
               <AdminDetails columns={3}>
                 <div>
